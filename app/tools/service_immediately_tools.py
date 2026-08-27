@@ -1,22 +1,44 @@
-"""ServiceImmediately ITSM Live FastMCP Tool Client."""
-from typing import Dict, Any
-import urllib.request, json
+"""ServiceImmediately ITSM FastMCP Async Client with State Machine Enforcement."""
+from typing import Dict, Any, Optional
+import json
+import logging
+from app.config import settings
 
-SI_MCP_URL = "https://mock-saas.aishprabhat.demo.altostrat.com/service-immediately/mcp/"
-DEFAULT_TOKEN = "mcp_awThuI7rWgonvsSO4WInzJ9IgB-yAT4kjALp200kFDA"
+logger = logging.getLogger(__name__)
+
+try:
+    import httpx
+    HAS_HTTPX = True
+except ImportError:
+    HAS_HTTPX = False
+    import urllib.request
+
+CRITICAL_KEYWORDS = ["outage", "crash", "down", "offline", "unresponsive", "security incident"]
 
 class ServiceImmediatelyClient:
-    def __init__(self, mcp_token: str = DEFAULT_TOKEN):
-        self.url = SI_MCP_URL
-        self.token = mcp_token
+    def __init__(self, base_url: Optional[str] = None, token: Optional[str] = None):
+        self.url = base_url or settings.service_immediately_base_url
+        self.token = token or settings.mcp_auth_token
         self.headers = {
-            "Authorization": f"Bearer {mcp_token}",
-            "X-MCP-Token": mcp_token,
+            "Authorization": f"Bearer {self.token}",
+            "X-MCP-Token": self.token,
             "Accept": "application/json, text/event-stream",
             "Content-Type": "application/json"
         }
+        self._async_client: Optional[Any] = None
 
-    def _call_mcp(self, tool_name: str, arguments: Dict[str, Any], call_id: int = 1) -> Dict[str, Any]:
+    async def _get_client(self):
+        if HAS_HTTPX:
+            if self._async_client is None or self._async_client.is_closed:
+                self._async_client = httpx.AsyncClient(
+                    timeout=httpx.Timeout(8.0, connect=3.0),
+                    headers=self.headers,
+                    limits=httpx.Limits(max_keepalive_connections=20, max_connections=50)
+                )
+            return self._async_client
+        return None
+
+    async def _call_mcp(self, tool_name: str, arguments: Dict[str, Any], call_id: int = 1) -> Dict[str, Any]:
         payload = {
             "jsonrpc": "2.0",
             "method": "tools/call",
@@ -24,33 +46,97 @@ class ServiceImmediatelyClient:
             "id": call_id
         }
         try:
-            req = urllib.request.Request(self.url, data=json.dumps(payload).encode("utf-8"), headers=self.headers, method="POST")
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                text_out = data.get("result", {}).get("content", [{}])[0].get("text", "")
-                return {"status": "SUCCESS", "raw": data, "text": text_out}
+            if HAS_HTTPX:
+                client = await self._get_client()
+                response = await client.post(self.url, json=payload)
+                response.raise_for_status()
+                data = response.json()
+            else:
+                req = urllib.request.Request(
+                    self.url,
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers=self.headers,
+                    method="POST"
+                )
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+
+            content = data.get("result", {}).get("content", [{}])
+            text_out = content[0].get("text", "") if content else ""
+            return {"status": "SUCCESS", "raw": data, "text": text_out}
         except Exception as e:
-            return {"status": "ERROR", "message": str(e)}
+            logger.error(f"ServiceImmediately FastMCP invocation error [{tool_name}]: {e}")
+            return {"status": "ERROR", "error": str(e), "text": f"Error calling ServiceImmediately: {str(e)}"}
 
-    async def list_tickets(self, employee_id: str = "EMP-558") -> Dict[str, Any]:
-        return self._call_mcp("list_tickets", {"employee_id": employee_id})
+    async def list_tickets(self, employee_id: str) -> Dict[str, Any]:
+        """List all incident tickets requested by a specific employee."""
+        return await self._call_mcp("list_tickets", {"employee_id": employee_id})
 
-    async def create_ticket(self, requested_by: str, category: str, short_description: str, priority: str = "3 - Moderate") -> Dict[str, Any]:
-        # Guardrail: auto-downgrade priority 1 without critical keywords
-        critical_kws = ["outage", "crash", "down", "offline", "unresponsive"]
-        if "1" in priority and not any(kw in short_description.lower() for kw in critical_kws):
-            priority = "4 - Low"
+    async def create_ticket(
+        self,
+        requested_by: str,
+        category: str,
+        short_description: str,
+        priority: str = "3 - Moderate",
+        assignment_group: str = "Service Desk"
+    ) -> Dict[str, Any]:
+        """Create an ITSM ticket with Priority 1 Critical Keyword Guardrail."""
+        final_priority = priority
+        if "1" in priority:
+            has_keyword = any(kw in short_description.lower() for kw in CRITICAL_KEYWORDS)
+            if not has_keyword:
+                logger.info(f"Guardrail triggered: P1 ticket without critical keyword downgraded to 4 - Low")
+                final_priority = "4 - Low"
 
-        return self._call_mcp("create_ticket", {
+        return await self._call_mcp("create_ticket", {
             "requested_by": requested_by,
             "category": category,
             "short_description": short_description,
-            "priority": priority
+            "priority": final_priority,
+            "assignment_group": assignment_group
+        })
+
+    async def add_ticket_comment(self, ticket_id: str, author: str, comment: str) -> Dict[str, Any]:
+        """Append comment to ticket activity log."""
+        return await self._call_mcp("add_ticket_comment", {
+            "ticket_id": ticket_id,
+            "author": author,
+            "comment": comment
         })
 
     async def update_ticket_status(self, ticket_id: str, status: str, resolution_notes: str = "") -> Dict[str, Any]:
-        return self._call_mcp("update_ticket_status", {
+        """Update lifecycle state (New -> In Progress -> Resolved -> Closed)."""
+        return await self._call_mcp("update_ticket_status", {
             "ticket_id": ticket_id,
             "status": status,
             "resolution_notes": resolution_notes
         })
+
+# Tool definitions for Google ADK / Gemini Function Calling
+SERVICE_IMMEDIATELY_TOOLS_SCHEMA = [
+    {
+        "name": "si_list_tickets",
+        "description": "List all active and historical IT/HR incident tickets for an employee in ServiceImmediately.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "employee_id": {"type": "string", "description": "Employee ID"}
+            },
+            "required": ["employee_id"]
+        }
+    },
+    {
+        "name": "si_create_ticket",
+        "description": "Create a new IT/HR support ticket in ServiceImmediately (Hardware, Software, Network, HRSD, Facilities).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "requested_by": {"type": "string", "description": "Employee ID"},
+                "category": {"type": "string", "enum": ["Hardware", "Software", "Network", "HRSD", "Facilities", "Inquiry / Help"]},
+                "short_description": {"type": "string", "description": "Issue summary"},
+                "priority": {"type": "string", "enum": ["1 - Critical", "2 - High", "3 - Moderate", "4 - Low"], "default": "3 - Moderate"}
+            },
+            "required": ["requested_by", "category", "short_description"]
+        }
+    }
+]

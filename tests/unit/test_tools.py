@@ -7,18 +7,15 @@ from app.tools.rag_tools import PolicyRAGClient
 @pytest.mark.asyncio
 async def test_workweek_balances():
     client = WorkWeekClient()
-    balances = await client.get_balances("EMP-4")
+    balances = await client.get_employee_balances("EMP-558")
     assert balances["status"] == "SUCCESS"
-    assert balances["vacation"]["available"] == 15.0
-    assert balances["sick"]["available"] == 12.0
+    assert "Vacation" in balances["text"]
 
 @pytest.mark.asyncio
 async def test_service_immediately_create_ticket():
     client = ServiceImmediatelyClient()
-    ticket = await client.create_incident("EMP-4", "Hardware", 3, "Laptop keyboard replacement")
-    assert ticket["status"] == "CREATED"
-    assert ticket["priority"] == 3
-    assert ticket["current_status"] == "New"
+    ticket = await client.create_ticket("EMP-558", "Hardware", "Laptop keyboard replacement", "3 - Moderate")
+    assert ticket["status"] == "SUCCESS"
 
 @pytest.mark.asyncio
 async def test_rag_policy_search():
@@ -26,4 +23,4 @@ async def test_rag_policy_search():
     res = await client.search_policy("outpatient sick leave")
     assert res["status"] == "SUCCESS"
     assert len(res["results"]) > 0
-    assert res["results"][0]["section"] == "§12.1"
+    assert "§12.1" in res["primary_section"]

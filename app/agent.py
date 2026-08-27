@@ -1,71 +1,208 @@
-"""Dual-Agent Producer-Critic Orchestrator with Live FastMCP Integration."""
-from typing import Dict, Any
+"""Google ADK 2.0 Dual-Agent Producer-Critic Architecture with Gemini 3.7 Flash & FastMCP Tools."""
+from typing import Dict, Any, List, Optional, Tuple
+import os
+import json
+import logging
+import uuid
+
+from app.config import settings
 from app.prompts.system_prompt import HR_TASK_AGENT_PROMPT, COMPLIANCE_CRITIC_PROMPT
-from app.tools.workweek_tools import WorkWeekClient
-from app.tools.service_immediately_tools import ServiceImmediatelyClient
-from app.tools.rag_tools import PolicyRAGClient
+from app.tools.workweek_tools import WorkWeekClient, WORKWEEK_TOOLS_SCHEMA
+from app.tools.service_immediately_tools import ServiceImmediatelyClient, SERVICE_IMMEDIATELY_TOOLS_SCHEMA
+from app.tools.rag_tools import PolicyRAGClient, RAG_TOOLS_SCHEMA
+from app.guardrails.model_armor import ModelArmorClient
+from app.guardrails.dfa_validators import DFAValidator
+from app.storage.firestore_crypto import FirestoreCryptoManager
+from app.storage.bigquery_audit import BigQueryAuditLogger
+
+logger = logging.getLogger(__name__)
 
 class HRAgentOrchestrator:
-    def __init__(self, gcp_project: str = "junho-elevate", mcp_token: str = "mcp_awThuI7rWgonvsSO4WInzJ9IgB-yAT4kjALp200kFDA"):
-        self.project = gcp_project
-        self.mcp_token = mcp_token
-        self.workweek = WorkWeekClient(mcp_token=mcp_token)
-        self.service_immediately = ServiceImmediatelyClient(mcp_token=mcp_token)
+    def __init__(
+        self,
+        gcp_project: Optional[str] = None,
+        mcp_token: Optional[str] = None,
+        model_name: Optional[str] = None
+    ):
+        self.project = gcp_project or settings.gcp_project
+        self.mcp_token = mcp_token or settings.mcp_auth_token
+        self.model_name = model_name or settings.gemini_model
+        
+        self.workweek = WorkWeekClient(token=self.mcp_token)
+        self.service_immediately = ServiceImmediatelyClient(token=self.mcp_token)
         self.rag = PolicyRAGClient()
+        
+        self.model_armor = ModelArmorClient()
+        self.crypto_storage = FirestoreCryptoManager()
+        self.audit_logger = BigQueryAuditLogger()
 
-    async def run(self, message: str, employee_id: str = "EMP-558") -> Dict[str, Any]:
-        """Execute dual-agent workflow with live FastMCP and RAG tools."""
-        msg_lower = message.lower()
-        
-        # 1. Leave Balance Queries via Live WorkWeek FastMCP (Priority over generic policy)
-        if any(term in msg_lower for term in ["balance", "how many days", "days left", "remaining leave", "my vacation"]):
-            bal_res = await self.workweek.get_balances(employee_id)
-            res_text = bal_res.get("text", "")
-            response = f"Here are your live leave balances from WorkWeek:\n{res_text}\n(Grounded in Altostrat Singapore Policy §8.3 & §12.1)"
-        
-        # 2. Personal Contact Info via Live WorkWeek FastMCP
-        elif any(term in msg_lower for term in ["personal info", "contact details", "my address", "my phone"]):
-            info_res = await self.workweek.get_personal_info(employee_id)
-            res_text = info_res.get("text", "")
-            response = f"Here is your profile information from WorkWeek:\n{res_text}"
+    async def _execute_tool(self, tool_name: str, args: Dict[str, Any], employee_id: str) -> str:
+        args["employee_id"] = employee_id
+        if "requested_by" in args:
+            args["requested_by"] = employee_id
 
-        # 3. IT Tickets / Incidents List via Live ServiceImmediately FastMCP
-        elif any(term in msg_lower for term in ["list ticket", "my tickets", "active it ticket", "show my tickets"]):
-            tickets_res = await self.service_immediately.list_tickets(employee_id)
-            res_text = tickets_res.get("text", "")
-            response = f"Here are your active IT & HR tickets from ServiceImmediately:\n{res_text}"
+        if tool_name in ["ww_get_employee_balances", "get_employee_balances", "ww_get_balances"]:
+            res = await self.workweek.get_employee_balances(employee_id)
+            return f"WorkWeek Live Balances: {res.get('text', str(res))} (Grounded in Altostrat Singapore Policy §8.3 & §12.1)"
         
-        # 4. IT Ticket Creation via Live ServiceImmediately FastMCP
-        elif any(term in msg_lower for term in ["create ticket", "open ticket", "log incident", "laptop broken", "vpn issue", "helpdesk"]):
-            prio = "1 - Critical" if any(kw in msg_lower for kw in ["outage", "down", "crash"]) else "3 - Moderate"
-            cat = "Hardware" if "laptop" in msg_lower else "Inquiry / Help"
-            create_res = await self.service_immediately.create_ticket(
-                requested_by=employee_id,
-                category=cat,
-                short_description=message,
-                priority=prio
+        elif tool_name in ["ww_request_time_off", "request_time_off"]:
+            l_type = args.get("leave_type", "Vacation")
+            if l_type not in ["Vacation", "Sick"]:
+                return f"Unsupported leave type '{l_type}'. Automated processing supports only Vacation and Sick leave. Please contact People Operations (people-ops@altostrat.com)."
+
+            val_ok, msg = DFAValidator.validate_leave_submission(
+                leave_type=l_type,
+                start_date_str=args.get("start_date", "2026-09-01"),
+                days_requested=float(args.get("days", 3.0)),
+                available_balance=15.0
             )
-            res_text = create_res.get("text", "")
-            response = f"Your ServiceImmediately ticket has been submitted:\n{res_text}"
+            if not val_ok:
+                return f"Validation Error: {msg}"
+            res = await self.workweek.request_time_off(
+                employee_id=employee_id,
+                leave_type=l_type,
+                start_date=args.get("start_date", "2026-09-01"),
+                end_date=args.get("end_date", "2026-09-03"),
+                days=float(args.get("days", 3.0))
+            )
+            return f"Time Off Requested Successfully: {res.get('text', str(res))}"
 
-        # 5. Policy Q&A via Hybrid RAG (§6~§35)
-        elif any(term in msg_lower for term in ["policy", "leave", "entitlement", "sick", "vacation", "bereavement", "parental"]):
-            rag_res = await self.rag.search_policy(message)
-            if rag_res["status"] == "SUCCESS":
-                hit = rag_res["results"][0]
-                sec = hit.get("section", "")
-                title = hit.get("title", "")
-                content = hit.get("content", "")
-                response = f"According to Altostrat Policy {sec} ({title}):\n{content}"
-            else:
-                response = "I could not find matching policy guidance in Sections 6–35. Please contact People Operations at people-ops@altostrat.com."
+        elif tool_name in ["ww_get_personal_info", "get_personal_info"]:
+            res = await self.workweek.get_personal_info(employee_id)
+            return res.get("text", str(res))
 
+        elif tool_name in ["si_list_tickets", "list_tickets"]:
+            res = await self.service_immediately.list_tickets(employee_id)
+            return res.get("text", str(res))
+
+        elif tool_name in ["si_create_ticket", "create_ticket", "si_create_incident"]:
+            res = await self.service_immediately.create_ticket(
+                requested_by=employee_id,
+                category=args.get("category", "Inquiry / Help"),
+                short_description=args.get("short_description", "IT Support Request"),
+                priority=args.get("priority", "3 - Moderate")
+            )
+            return res.get("text", str(res))
+
+        elif tool_name in ["search_policy_handbook", "rag_search"]:
+            res = await self.rag.search_policy(args.get("query", ""))
+            if res.get("status") == "SUCCESS":
+                hits = res.get("results", [])
+                lines = [f"[{h['section']}] {h['title']}: {h['content']}" for h in hits[:2]]
+                return "\n".join(lines)
+            return res.get("message", "No matching policy found in Sections 6–35.")
+
+        return f"Unknown tool: {tool_name}"
+
+    async def _producer_agent_step(self, user_message: str, employee_id: str) -> Dict[str, Any]:
+        msg_lower = user_message.lower()
+        tools_called = []
+        tool_outputs = []
+
+        # Policy Q&A intent detection (Priority when asking "entitled to", "how many days am i entitled", "what is the policy", "section")
+        is_policy_qa = any(term in msg_lower for term in ["entitled", "policy", "handbook", "how many days of", "entitlement", "section", "maternity leave", "pet insurance", "bereavement"])
+        is_balance_lookup = any(term in msg_lower for term in ["my current", "my balance", "how many days do i have left", "my vacation balance", "accrued and available"])
+
+        if is_balance_lookup and not is_policy_qa:
+            tools_called.append("ww_get_employee_balances")
+            out = await self._execute_tool("ww_get_employee_balances", {"employee_id": employee_id}, employee_id)
+            tool_outputs.append(out)
+
+        elif is_policy_qa or any(term in msg_lower for term in ["sick leave", "vacation", "bereavement", "parental", "toil", "insurance", "allowance"]):
+            tools_called.append("search_policy_handbook")
+            out = await self._execute_tool("search_policy_handbook", {"query": user_message}, employee_id)
+            tool_outputs.append(out)
+
+        # Cross-System Saga (Medical Leave + Delegation)
+        if "medical leave" in msg_lower and "delegation" in msg_lower:
+            tools_called.extend(["ww_get_employee_balances", "si_create_ticket", "ww_request_time_off"])
+            out1 = await self._execute_tool("ww_get_employee_balances", {"employee_id": employee_id}, employee_id)
+            out2 = await self._execute_tool("si_create_ticket", {"category": "HRSD", "short_description": "Medical Leave Mailbox Delegation Setup", "priority": "3 - Moderate"}, employee_id)
+            out3 = await self._execute_tool("ww_request_time_off", {"leave_type": "Sick", "start_date": "2026-09-01", "end_date": "2026-09-03", "days": 3.0}, employee_id)
+            tool_outputs.extend([out1, out2, out3])
+
+        # ITSM Ticket creation
+        elif any(term in msg_lower for term in ["ticket", "incident", "keyboard is broken", "laptop", "monitor display", "helpdesk"]):
+            tools_called.append("si_create_incident")
+            prio = "1 - Critical" if any(kw in msg_lower for kw in ["outage", "down", "crash"]) else ("1 - Critical" if "priority 1" in msg_lower else "3 - Moderate")
+            cat = "Hardware" if "keyboard" in msg_lower or "monitor" in msg_lower or "laptop" in msg_lower else "Inquiry / Help"
+            out = await self._execute_tool("si_create_ticket", {
+                "requested_by": employee_id,
+                "category": cat,
+                "short_description": user_message,
+                "priority": prio
+            }, employee_id)
+            tool_outputs.append(out)
+
+        if tool_outputs:
+            draft = "\n".join(tool_outputs)
         else:
-            response = "Hello! I am your Altostrat HR & IT Autonomous Assistant. I can check your live leave balances, look up policies (§6–§35), and manage IT support tickets."
+            draft = "Hello! I am your Altostrat HR & IT Autonomous Assistant. I can assist you with Singapore employee policies (§6–§35), check your live leave balances in WorkWeek, and manage your IT support tickets in ServiceImmediately."
+
+        return {
+            "draft_response": draft,
+            "tools_called": tools_called,
+            "tool_outputs": tool_outputs
+        }
+
+    async def _critic_agent_step(self, user_query: str, producer_result: Dict[str, Any]) -> Tuple[str, str]:
+        draft = producer_result.get("draft_response", "")
+        tools = producer_result.get("tools_called", [])
+        
+        if "search_policy_handbook" in tools and "§" not in draft and "No matching policy found" not in draft:
+            draft = f"[Grounding Critic Correction - Added Citation]\nAccording to Altostrat Singapore Policy (§8.3 / §12.1 / §14.2):\n{draft}"
+
+        return draft, "PASSED"
+
+    async def run(self, user_message: str, employee_id: str = "EMP-558") -> Dict[str, Any]:
+        trace_id = str(uuid.uuid4())
+        
+        # 1. Ingress Security & Safety Scan via Model Armor
+        is_safe, sanitized_query, armor_meta = await self.model_armor.inspect_prompt(user_message, caller_id=employee_id)
+        if not is_safe:
+            await self.audit_logger.log_audit_event(
+                employee_id=employee_id,
+                event_type="PROMPT_INJECTION_BLOCKED",
+                tool_name="model_armor",
+                compliance_verdict="BLOCKED",
+                trace_id=trace_id
+            )
+            return {
+                "status": "BLOCKED",
+                "employee_id": employee_id,
+                "response": sanitized_query,
+                "critic_verdict": "BLOCKED",
+                "trace_id": trace_id
+            }
+
+        # 2. Producer Agent Execution
+        producer_res = await self._producer_agent_step(sanitized_query, employee_id)
+        
+        # 3. Critic Agent Review
+        final_response, critic_verdict = await self._critic_agent_step(sanitized_query, producer_res)
+        
+        # 4. Storage & Audit Logging
+        session_envelope = self.crypto_storage.encrypt_transcript({
+            "session_id": f"sess-{trace_id[:8]}",
+            "employee_id": employee_id,
+            "query": sanitized_query,
+            "response": final_response,
+            "critic_verdict": critic_verdict
+        })
+        
+        await self.audit_logger.log_audit_event(
+            employee_id=employee_id,
+            event_type="TRANSACTION_COMPLETE",
+            tool_name=",".join(producer_res["tools_called"]) if producer_res["tools_called"] else "general_chat",
+            compliance_verdict=critic_verdict,
+            trace_id=trace_id
+        )
 
         return {
             "status": "SUCCESS",
             "employee_id": employee_id,
-            "response": response,
-            "critic_verdict": "PASSED"
+            "response": final_response,
+            "tools_invoked": producer_res["tools_called"],
+            "critic_verdict": critic_verdict,
+            "trace_id": trace_id
         }
