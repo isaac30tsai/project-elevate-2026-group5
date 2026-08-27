@@ -3,11 +3,12 @@ import asyncio
 import json
 import os
 import logging
+import uuid
 from typing import Dict, Any, Optional
 
 try:
     from fastapi import FastAPI, Request, HTTPException, status
-    from fastapi.responses import JSONResponse
+    from fastapi.responses import JSONResponse, StreamingResponse
     import uvicorn
     HAS_FASTAPI = True
 except ImportError:
@@ -132,8 +133,147 @@ if HAS_FASTAPI:
             span_attrs["user_query_len"] = len(user_query)
 
             agent_result = await agent.run(user_query, employee_id=employee_id)
+            if agent_result.get("status") == "DATABASE_ERROR":
+                from fastapi.responses import JSONResponse
+                err_card = GeminiEnterpriseAdapter.build_chat_card_response(
+                    user_query,
+                    {
+                        "response": f"System Alert: Database transaction persistence error ({agent_result.get('error')}).",
+                        "status": "DATABASE_ERROR",
+                        "critic_verdict": "ERROR"
+                    }
+                )
+                return JSONResponse(status_code=500, content=err_card)
+
             card_response = GeminiEnterpriseAdapter.build_chat_card_response(user_query, agent_result)
             return card_response
+
+    @app.post("/api/stream_reasoning_engine")
+    @app.post("/api/stream_reasoning_engine/")
+    async def stream_reasoning_engine(request: Request):
+        """Vertex AI Reasoning Engine & Gemini Enterprise Streaming Execution Protocol."""
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+
+        class_method = body.get("class_method", "async_stream_query")
+        input_data = body.get("input") or {}
+
+        # 1. Handle session lifecycle calls if forwarded here
+        if "session" in class_method.lower():
+            sess_id = input_data.get("session_id") or f"sess-{uuid.uuid4().hex[:12]}"
+            res_obj = {"id": sess_id, "session_id": sess_id, "user_id": input_data.get("user_id", "EMP-558")}
+            async def sess_gen():
+                yield json.dumps(res_obj) + "\n"
+            return StreamingResponse(sess_gen(), media_type="application/json")
+
+        # 2. Extract user query string from heterogeneous payload structures
+        raw_msg = input_data.get("message")
+        if isinstance(raw_msg, dict):
+            parts = raw_msg.get("parts", [])
+            extracted = " ".join(p.get("text", "") for p in parts if isinstance(p, dict) and "text" in p)
+            user_query = extracted or raw_msg.get("text", "")
+        elif isinstance(raw_msg, str):
+            user_query = raw_msg
+        else:
+            user_query = input_data.get("query") or input_data.get("prompt") or input_data.get("text") or ""
+
+        if not user_query:
+            user_query = "Hello"
+
+        user_id = input_data.get("user_id") or input_data.get("employee_id") or "EMP-558"
+        session_id = input_data.get("session_id") or f"sess-{uuid.uuid4().hex[:8]}"
+
+        async def reasoning_stream_generator():
+            try:
+                # Execute full cognitive reasoning loop
+                agent_res = await agent.run(user_query, employee_id=user_id)
+                response_text = agent_res.get("response", "")
+
+                # Standard Vertex AI / ADK Event Wire Format
+                event_dict = {
+                    "author": "tpe-elevate-group5-agent",
+                    "content": {
+                        "role": "model",
+                        "parts": [
+                            {"text": response_text}
+                        ]
+                    },
+                    "actions": {},
+                    "session_id": session_id
+                }
+                yield json.dumps(event_dict) + "\n"
+            except Exception as e:
+                logger.error(f"Error executing agent reasoning stream: {e}", exc_info=True)
+                err_event = {
+                    "author": "tpe-elevate-group5-agent",
+                    "content": {
+                        "role": "model",
+                        "parts": [
+                            {"text": f"Agent execution error: {str(e)}"}
+                        ]
+                    },
+                    "actions": {},
+                    "session_id": session_id
+                }
+                yield json.dumps(err_event) + "\n"
+
+        return StreamingResponse(reasoning_stream_generator(), media_type="application/json")
+
+    @app.post("/api/reasoning_engine")
+    @app.post("/api/reasoning_engine/")
+    async def reasoning_engine(request: Request):
+        """Vertex AI Reasoning Engine & Gemini Enterprise Synchronous Execution Protocol."""
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+
+        class_method = body.get("class_method", "query")
+        input_data = body.get("input") or {}
+
+        # Session lifecycle endpoints
+        if "session" in class_method.lower():
+            if "create" in class_method.lower():
+                sess_id = f"sess-{uuid.uuid4().hex[:12]}"
+                return JSONResponse({"output": {"id": sess_id, "session_id": sess_id, "user_id": input_data.get("user_id", "EMP-558")}})
+            if "get" in class_method.lower():
+                return JSONResponse({"output": {"id": input_data.get("session_id", "default"), "session_id": input_data.get("session_id", "default")}})
+            if "list" in class_method.lower():
+                return JSONResponse({"output": []})
+            if "delete" in class_method.lower():
+                return JSONResponse({"output": {"deleted": True}})
+
+        raw_msg = input_data.get("message")
+        if isinstance(raw_msg, dict):
+            parts = raw_msg.get("parts", [])
+            extracted = " ".join(p.get("text", "") for p in parts if isinstance(p, dict) and "text" in p)
+            user_query = extracted or raw_msg.get("text", "")
+        elif isinstance(raw_msg, str):
+            user_query = raw_msg
+        else:
+            user_query = input_data.get("query") or input_data.get("prompt") or input_data.get("text") or ""
+
+        if not user_query:
+            user_query = "Hello"
+
+        user_id = input_data.get("user_id") or input_data.get("employee_id") or "EMP-558"
+        agent_res = await agent.run(user_query, employee_id=user_id)
+        
+        output = {
+            "content": {
+                "role": "model",
+                "parts": [
+                    {"text": agent_res.get("response", "")}
+                ]
+            },
+            "status": agent_res.get("status", "SUCCESS"),
+            "critic_verdict": agent_res.get("critic_verdict", "PASSED"),
+            "trace_id": agent_res.get("trace_id", "")
+        }
+        status_code = 500 if agent_res.get("status") == "DATABASE_ERROR" else 200
+        return JSONResponse({"output": output}, status_code=status_code)
 
     @app.post("/v1/policy/search")
     async def search_policy_endpoint(payload: Dict[str, Any]):

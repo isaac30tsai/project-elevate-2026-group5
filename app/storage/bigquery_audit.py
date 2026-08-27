@@ -17,6 +17,11 @@ except ImportError:
 INPUT_PRICE_PER_M = 0.075
 OUTPUT_PRICE_PER_M = 0.300
 
+class BigQueryAuditError(RuntimeError):
+    """Raised when structured compliance audit events fail to persist to BigQuery."""
+    pass
+
+
 class BigQueryAuditLogger:
     """Production Tier-3 Observability & FinOps Compliance Lakehouse Logger."""
 
@@ -47,7 +52,8 @@ class BigQueryAuditLogger:
         prompt_tokens: int = 120,
         candidate_tokens: int = 85,
         thoughts_tokens: int = 40,
-        latency_ms: float = 42.5
+        latency_ms: float = 42.5,
+        fail_silently: bool = False
     ) -> Dict[str, Any]:
         """Record structured compliance audit row with FinOps token accounting."""
         total_tokens = prompt_tokens + candidate_tokens + thoughts_tokens
@@ -77,8 +83,16 @@ class BigQueryAuditLogger:
                 table_ref = f"{settings.gcp_project}.{self.dataset_id}.{self.table_id}"
                 errors = self.bq_client.insert_rows_json(table_ref, [event_row])
                 if errors:
-                    logger.warning(f"BigQuery insert errors: {errors}")
+                    err_msg = f"BigQuery stream insert failed on table '{table_ref}': {errors}"
+                    logger.error(err_msg)
+                    if not fail_silently:
+                        raise BigQueryAuditError(err_msg)
             except Exception as e:
-                logger.warning(f"BigQuery stream insert error: {e}")
+                if isinstance(e, BigQueryAuditError):
+                    raise
+                err_msg = f"BigQuery stream insert error on dataset '{self.dataset_id}': {e}"
+                logger.error(err_msg, exc_info=True)
+                if not fail_silently:
+                    raise BigQueryAuditError(err_msg) from e
 
         return event_row
