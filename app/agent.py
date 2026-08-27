@@ -104,12 +104,12 @@ class HRAgentOrchestrator:
                 self.genai_client = genai.Client(
                     vertexai=True,
                     project=self.project,
-                    location=settings.region,
-                    http_options={"timeout": 5000}
+                    location=os.getenv("GOOGLE_CLOUD_LOCATION", "global"),
+                    http_options={"timeout": 30.0}
                 )
-                logger.info(f"Initialized Vertex AI Gemini client for {self.model_name} on {self.project}")
+                logger.info(f"Initialized Vertex AI Gemini client for {self.model_name} on {self.project} (location: {os.getenv('GOOGLE_CLOUD_LOCATION', 'global')})")
             except Exception as e:
-                logger.debug(f"Google GenAI Client init fallback: {e}")
+                logger.warning(f"Google GenAI Client init fallback: {e}")
 
     async def _get_dynamic_balance(self, employee_id: str, leave_type: str) -> float:
         """Dynamically fetch live available balance from WorkWeek HCM API."""
@@ -284,7 +284,12 @@ class HRAgentOrchestrator:
                     f"User Query: {user_message}\n"
                     f"Authenticated Employee: {employee_id}\n"
                     f"Retrieved Tool/Policy Context:\n{context_str}\n\n"
-                    f"Synthesize an authoritative, helpful response grounded in the provided context with mandatory section citations (§)."
+                    f"Synthesis Requirements:\n"
+                    f"1. Compose a warm, professional, and authoritative HR & IT assistant response.\n"
+                    f"2. Use structured Markdown (bullet points, clear headers) to explain policies, balances, or actions taken.\n"
+                    f"3. Naturally embed handbook section citations (e.g. §6.1, §10.3, §12.1, §14.2) wherever policy entitlements are stated.\n"
+                    f"4. If the user asks to verify confidential personal identity data (such as NRIC, phone numbers, or bank records) via policy search, politely state that employee identity verification cannot be performed through policy search and direct them to People Operations (people-ops@altostrat.com).\n"
+                    f"5. Do NOT include bracketed debug badges, internal critic status codes, or review checklists in the response."
                 )
                 llm_res = self.genai_client.models.generate_content(
                     model=self.model_name,
@@ -298,11 +303,17 @@ class HRAgentOrchestrator:
                     draft_response = llm_res.text.strip()
                     logger.info("Real Gemini 3.5 Flash Model response generated and wired successfully")
             except Exception as e:
-                logger.debug(f"Gemini cognitive synthesis warning: {e}")
+                logger.warning(f"Gemini cognitive synthesis warning: {e}")
 
-        # Fallback to direct tool synthesis if LLM offline
+        # Polished fallback synthesis if LLM offline
         if not draft_response:
-            draft_response = "\n".join(tool_outputs) if tool_outputs else "Hello! I am your Altostrat HR & IT Autonomous Assistant."
+            if tool_outputs:
+                draft_response = (
+                    "Based on the official Altostrat Singapore Employee Policy Handbook:\n\n"
+                    + "\n\n".join(f"• {out}" for out in tool_outputs)
+                )
+            else:
+                draft_response = "Hello! I am your Altostrat HR & IT Autonomous Assistant. How may I assist you with company policies, leave requests, or IT services today?"
 
         return {
             "draft_response": draft_response,
@@ -320,19 +331,35 @@ class HRAgentOrchestrator:
         if self.genai_client:
             try:
                 facts_str = " ".join(tool_outputs)
-                critic_prompt = f"User Query: {user_query}\nProducer Draft: {draft}\nGrounding Facts: {facts_str}\nReview draft and ensure proper section citations."
+                critic_prompt = (
+                    f"User Query: {user_query}\n"
+                    f"Producer Draft:\n{draft}\n\n"
+                    f"Grounding Facts:\n{facts_str}\n\n"
+                    f"Review the draft for compliance with Altostrat Singapore Employee Handbook:\n"
+                    f"- Verify 0% hallucination and that all claims are grounded in facts.\n"
+                    f"- Ensure section citations (§) are accurate.\n"
+                    f"- Ensure no PII (NRIC, phone, card numbers) is leaked in plaintext.\n"
+                    f"- Ensure a polite, executive, and empathetic tone.\n"
+                    f"Return ONLY the polished, final compliant response ready for the employee. Do not output review checklists or internal evaluation badges."
+                )
                 critic_res = self.genai_client.models.generate_content(
                     model=self.model_name,
                     contents=critic_prompt,
                     config=types.GenerateContentConfig(
                         system_instruction=COMPLIANCE_CRITIC_PROMPT,
-                        temperature=0.0
+                        temperature=0.2
                     )
                 )
-                if critic_res and critic_res.text and "APPROVED" not in critic_res.text:
-                    draft = critic_res.text.strip()
+                if critic_res and critic_res.text:
+                    crit_text = critic_res.text.strip()
+                    if "### Final Approved Response" in crit_text:
+                        crit_text = crit_text.split("### Final Approved Response")[-1].strip()
+                    elif "Final Approved Response:" in crit_text:
+                        crit_text = crit_text.split("Final Approved Response:")[-1].strip()
+                    if crit_text:
+                        draft = crit_text
             except Exception as e:
-                logger.debug(f"Critic LLM evaluation warning: {e}")
+                logger.warning(f"Critic LLM evaluation warning: {e}")
 
         # Ensure mandatory section citations (§) are present for policy adherence
         if "§" not in draft:
@@ -361,7 +388,8 @@ class HRAgentOrchestrator:
 
         footer = "\n\n---\n" + "\n".join(reference_links)
 
-        final_response = f"[Grounding Critic Certified - Citation Injected]\n{draft}{footer}"
+        # Polished final response (Zero bracketed debug badges)
+        final_response = f"{draft}{footer}"
         return final_response, "PASSED"
 
     async def run(self, user_message: str, employee_id: str = "EMP-558") -> Dict[str, Any]:
