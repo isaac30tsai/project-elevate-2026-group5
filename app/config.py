@@ -17,7 +17,7 @@ class Settings:
     gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-3.7-flash")
     temperature: float = float(os.getenv("TEMPERATURE", "0.2"))
     
-    # SaaS FastMCP Endpoints (Configured via Environment Variables)
+    # SaaS FastMCP Endpoints (Externalized)
     workweek_base_url: str = os.getenv(
         "WORKWEEK_BASE_URL",
         "https://mock-saas.aishprabhat.demo.altostrat.com/work-week/mcp/"
@@ -26,7 +26,7 @@ class Settings:
         "SERVICE_IMMEDIATELY_BASE_URL",
         "https://mock-saas.aishprabhat.demo.altostrat.com/service-immediately/mcp/"
     )
-    # Externalized MCP Authentication Token (No hardcoded fallback secret)
+    # Strictly read from environment / Secret Manager (Zero hardcoded secrets)
     mcp_auth_token: str = os.getenv("MCP_AUTH_TOKEN", "")
     
     # Knowledge & RAG
@@ -38,6 +38,3 @@ class Settings:
     bigquery_dataset: str = os.getenv("BIGQUERY_DATASET", "altostrat_hr_analytics")
 
 settings = Settings()
-
-if not settings.mcp_auth_token:
-    logger.warning("MCP_AUTH_TOKEN environment variable is not set. SaaS tool invocations will require authentication injection.")
