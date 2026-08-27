@@ -18,7 +18,15 @@ async def run_benchmark():
     print(f"FastMCP Base       : {settings.workweek_base_url}")
     print("-" * 80)
 
+    from unittest.mock import MagicMock
     orchestrator = HRAgentOrchestrator()
+    mock_kms = MagicMock()
+    mock_kms.encrypt.side_effect = lambda request: MagicMock(ciphertext=b"mock-kms-wrapped-" + request["plaintext"])
+    mock_kms.decrypt.side_effect = lambda request: MagicMock(plaintext=request["ciphertext"].replace(b"mock-kms-wrapped-", b""))
+    orchestrator.crypto_storage.kms_client = mock_kms
+    mock_bq = MagicMock()
+    mock_bq.insert_rows_json.return_value = []
+    orchestrator.audit_logger.bq_client = mock_bq
     data_path1 = os.path.join(os.path.dirname(__file__), "datasets", "eval-data.json")
     data_path2 = os.path.join(os.path.dirname(__file__), "datasets", "eval-data2.json")
 

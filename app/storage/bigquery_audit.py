@@ -29,7 +29,7 @@ class BigQueryAuditLogger:
         self.dataset_id = dataset_id or settings.bigquery_dataset
         self.table_id = "compliance_audit_log"
         self.bq_client = None
-        if HAS_BQ_SDK:
+        if HAS_BQ_SDK and settings.environment not in ["test"]:
             try:
                 self.bq_client = bigquery.Client(project=settings.gcp_project)
             except Exception as e:

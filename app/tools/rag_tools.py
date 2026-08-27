@@ -94,7 +94,7 @@ class PolicyRAGClient:
         self.datastore_id = datastore_id or os.getenv("DATASTORE_ID", "hr-policies-lab-store")
         self.search_client = None
         
-        if HAS_DISCOVERY_ENGINE_SDK:
+        if HAS_DISCOVERY_ENGINE_SDK and settings.environment not in ["test"]:
             try:
                 self.search_client = discoveryengine.SearchServiceClient()
                 logger.info(f"Initialized Vertex AI Search client for datastore {self.datastore_id}")

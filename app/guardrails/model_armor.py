@@ -59,7 +59,7 @@ class ModelArmorClient:
                 sanitization_res = data.get("sanitizationResult", {})
                 filter_match = sanitization_res.get("filterMatchState", "NO_MATCH")
                 if filter_match == "MATCH_FOUND":
-                    return False, "Prompt blocked by Google Cloud Model Armor (Inappropriate content or jailbreak detected).", data
+                    return False, "Prompt BLOCKED by Google Cloud Model Armor (Inappropriate content or jailbreak detected).", data
                 return True, sanitization_res.get("sanitizedPrompt", prompt), data
         except Exception as e:
             logger.debug(f"Cloud Model Armor REST invocation fallback: {e}")

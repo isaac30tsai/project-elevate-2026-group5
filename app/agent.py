@@ -101,7 +101,12 @@ class HRAgentOrchestrator:
         self.genai_client = None
         if HAS_GENAI:
             try:
-                self.genai_client = genai.Client(project=self.project, location=settings.region)
+                self.genai_client = genai.Client(
+                    vertexai=True,
+                    project=self.project,
+                    location=settings.region,
+                    http_options={"timeout": 5000}
+                )
                 logger.info(f"Initialized Vertex AI Gemini client for {self.model_name} on {self.project}")
             except Exception as e:
                 logger.debug(f"Google GenAI Client init fallback: {e}")
@@ -401,7 +406,12 @@ class HRAgentOrchestrator:
 
 
 # Google ADK 2.0 Module Exports for agents-cli & Vertex AI Agent Runtime
-adk_orchestrator = HRAgentOrchestrator()
-root_agent = getattr(adk_orchestrator, "adk_producer", None)
-app = getattr(adk_orchestrator, "adk_app", None)
+if settings.environment not in ["test"]:
+    adk_orchestrator = HRAgentOrchestrator()
+    root_agent = getattr(adk_orchestrator, "adk_producer", None)
+    app = getattr(adk_orchestrator, "adk_app", None)
+else:
+    adk_orchestrator = None
+    root_agent = None
+    app = None
 

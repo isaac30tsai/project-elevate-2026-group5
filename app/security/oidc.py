@@ -77,6 +77,11 @@ class DynamicEmployeeDirectoryService:
         return self.default_employee_id
 
 
+class OIDCAuthenticationError(RuntimeError):
+    """Raised when OIDC/IAP JWT signature validation fails or unverified token is presented."""
+    pass
+
+
 class OIDCIdentityResolver:
     """Production OIDC & IAP JWT Cryptographic Signature & Audience Assertion Validator."""
 
@@ -97,8 +102,13 @@ class OIDCIdentityResolver:
         padded = payload + "=" * ((4 - len(payload) % 4) % 4)
         return json.loads(base64.urlsafe_b64decode(padded.encode()).decode())
 
+
     def validate_bearer_jwt(self, raw_token: str) -> Tuple[bool, Dict[str, Any], str]:
-        """Cryptographically validate an incoming Google OAuth ID Token or IAP JWT."""
+        """Cryptographically validate an incoming Google OAuth ID Token or IAP JWT.
+        
+        Strict Identity Boundary: Unverified claims or forged tokens are strictly
+        rejected and will never fall through to an unverified success state.
+        """
         if not raw_token:
             return False, {}, "Missing authorization token"
 
@@ -107,48 +117,60 @@ class OIDCIdentityResolver:
         else:
             token = raw_token.strip()
 
-        # Handle Mock testing tokens in CI/Local environment
+        # Handle Mock testing tokens in CI/Test environment only
         if token.startswith("test-jwt-"):
-            email = token.replace("test-jwt-", "")
-            return True, {"email": email, "sub": "test-sub-123"}, "VALID_TEST_TOKEN"
+            if settings.environment in ["dev", "test"]:
+                email = token.replace("test-jwt-", "")
+                return True, {"email": email, "sub": "test-sub-123"}, "VALID_TEST_TOKEN"
+            return False, {}, "Test tokens are strictly prohibited in non-dev environments"
+
+        if not HAS_GOOGLE_AUTH:
+            return False, {}, "Cryptographic authentication libraries (google-auth) not installed"
 
         try:
-            claims = self._parse_unverified_claims(token)
+            unverified_claims = self._parse_unverified_claims(token)
         except Exception as e:
             return False, {}, f"Invalid JWT structure: {e}"
 
-        # 1. Expiration validation
-        now = int(time.time())
-        if claims.get("exp") and claims["exp"] < now:
-            return False, claims, "Token has expired (exp claim violation)"
+        iss = unverified_claims.get("iss", "")
+        request = google_requests.Request()
 
-        # 2. Issuer validation
-        iss = claims.get("iss", "")
-        valid_issuers = [
-            "https://accounts.google.com",
-            "accounts.google.com",
-            "https://cloud.google.com/iap"
-        ]
-        if not any(iss.startswith(v) for v in valid_issuers):
-            return False, claims, f"Invalid token issuer: {iss}"
-
-        # 3. Audience validation if configured
-        if self.expected_audience and claims.get("aud") != self.expected_audience:
-            return False, claims, f"Audience mismatch: expected {self.expected_audience}, got {claims.get('aud')}"
-
-        # 4. Cryptographic signature check via google.oauth2 if installed
-        if HAS_GOOGLE_AUTH and claims.get("iss") in ["https://accounts.google.com", "accounts.google.com"]:
+        # 1. Google Cloud IAP Assertion JWT Verification
+        if iss.startswith("https://cloud.google.com/iap") or "iap" in iss:
             try:
-                request = google_requests.Request()
-                verified_claims = id_token.verify_oauth2_token(token, request, audience=self.expected_audience or None)
-                return True, verified_claims, "CRYPTOGRAPHIC_SIGNATURE_VALID"
+                verified_claims = id_token.verify_token(
+                    token,
+                    request,
+                    audience=self.expected_audience or None,
+                    certs_url=self.iap_public_keys_url
+                )
+                return True, dict(verified_claims), "IAP_CRYPTOGRAPHIC_SIGNATURE_VALID"
             except Exception as e:
-                logger.debug(f"Google auth strict verify warning: {e}")
+                logger.warning(f"IAP JWT cryptographic signature verification failed: {e}")
+                return False, {}, f"IAP cryptographic signature verification failed: {e}"
 
-        return True, claims, "CLAIMS_VERIFIED"
+        # 2. Google OAuth ID Token Verification
+        elif iss in ["https://accounts.google.com", "accounts.google.com"]:
+            try:
+                verified_claims = id_token.verify_oauth2_token(
+                    token,
+                    request,
+                    audience=self.expected_audience or None
+                )
+                return True, dict(verified_claims), "CRYPTOGRAPHIC_SIGNATURE_VALID"
+            except Exception as e:
+                logger.warning(f"Google OAuth ID token verification failed: {e}")
+                return False, {}, f"Cryptographic token verification failed: {e}"
+
+        # 3. Reject any untrusted issuer (No unverified bypasses)
+        return False, {}, f"Untrusted token issuer: {iss}"
 
     def resolve_caller_identity(self, headers: Dict[str, str], body: Optional[Dict[str, Any]] = None) -> str:
-        """Securely resolve and isolate caller employee ID (D-006) dynamically."""
+        """Securely resolve and isolate caller employee ID (D-006) dynamically.
+        
+        Enforces cryptographic verification of all tokens and rejects unverified
+        body-based identity spoofing in production environments.
+        """
         # Check standard headers: IAP JWT assertion or Authorization Bearer
         iap_jwt = headers.get("x-goog-iap-jwt-assertion") or headers.get("X-Goog-IAP-JWT-Assertion")
         auth_header = headers.get("authorization") or headers.get("Authorization")
@@ -162,24 +184,34 @@ class OIDCIdentityResolver:
             if valid:
                 extracted_claims = claims
                 resolved_email = claims.get("email")
+            else:
+                logger.warning(f"IAP JWT rejected due to signature verification failure: {msg}")
 
         elif auth_header and ("Bearer " in auth_header or auth_header.startswith("ya29.") is False):
             valid, claims, msg = self.validate_bearer_jwt(auth_header)
             if valid:
                 extracted_claims = claims
                 resolved_email = claims.get("email")
+            else:
+                logger.warning(f"Bearer JWT rejected due to signature verification failure: {msg}")
 
         elif email_header:
             clean = email_header.replace("accounts.google.com:", "").strip()
             resolved_email = clean
 
+        # Prevent token bypass & body-based user spoofing:
+        # In non-dev/test environments, body email is strictly rejected if no verified auth header was provided.
         if not resolved_email and body:
-            resolved_email = body.get("user", {}).get("email")
+            if settings.environment in ["dev", "test"]:
+                resolved_email = body.get("user", {}).get("email")
+            else:
+                logger.warning("Unverified client body user email rejected to prevent D-006 identity spoofing")
 
         # 1. Check for explicit claim in validated JWT
-        claim_id = self.directory_service.resolve_from_claims(extracted_claims)
-        if claim_id:
-            return claim_id
+        if extracted_claims:
+            claim_id = self.directory_service.resolve_from_claims(extracted_claims)
+            if claim_id:
+                return claim_id
 
         # 2. Dynamic directory resolution based on verified email
         return self.directory_service.resolve_from_email(resolved_email or "")

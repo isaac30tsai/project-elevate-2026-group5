@@ -45,7 +45,7 @@ class FirestoreCryptoManager:
         self.kms_client = None
         self.firestore_client = None
         
-        if HAS_GCP_STORAGE_SDK:
+        if HAS_GCP_STORAGE_SDK and settings.environment not in ["test"]:
             try:
                 self.kms_client = kms_v1.KeyManagementServiceClient()
             except Exception as e:
