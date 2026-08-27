@@ -192,22 +192,35 @@ if HAS_FASTAPI:
                 response_text = agent_res.get("response", "")
 
                 if agent_res.get("status") == "DATABASE_ERROR":
-                    err_event = {
+                    err_msg = f"System Alert: Database transaction persistence error ({agent_res.get('error')})."
+                    single_event = {
                         "author": "tpe-elevate-group5-agent",
                         "content": {
                             "role": "model",
                             "parts": [
-                                {"text": f"System Alert: Database transaction persistence error ({agent_res.get('error')})."}
+                                {"text": err_msg}
                             ]
                         },
                         "actions": {"status": "DATABASE_ERROR", "error": agent_res.get("error")},
-                        "session_id": session_id
+                        "turn_complete": True
+                    }
+                    err_event = {
+                        "events": [single_event],
+                        "session_id": session_id,
+                        "author": "tpe-elevate-group5-agent",
+                        "content": {
+                            "role": "model",
+                            "parts": [
+                                {"text": err_msg}
+                            ]
+                        },
+                        "actions": {"status": "DATABASE_ERROR", "error": agent_res.get("error")}
                     }
                     yield json.dumps(err_event) + "\n"
                     return
 
-                # Standard Vertex AI / ADK Event Wire Format
-                event_dict = {
+                # Standard Vertex AI / ADK & Gemini Enterprise RunAgentResponse Wire Format
+                single_event = {
                     "author": "tpe-elevate-group5-agent",
                     "content": {
                         "role": "model",
@@ -216,21 +229,46 @@ if HAS_FASTAPI:
                         ]
                     },
                     "actions": {},
-                    "session_id": session_id
+                    "turn_complete": True
                 }
-                yield json.dumps(event_dict) + "\n"
-            except Exception as e:
-                logger.error(f"Error executing agent reasoning stream: {e}", exc_info=True)
-                err_event = {
+                event_dict = {
+                    "events": [single_event],
+                    "session_id": session_id,
                     "author": "tpe-elevate-group5-agent",
                     "content": {
                         "role": "model",
                         "parts": [
-                            {"text": f"Agent execution error: {str(e)}"}
+                            {"text": response_text}
+                        ]
+                    },
+                    "actions": {}
+                }
+                yield json.dumps(event_dict) + "\n"
+            except Exception as e:
+                logger.error(f"Error executing agent reasoning stream: {e}", exc_info=True)
+                err_msg = f"Agent execution error: {str(e)}"
+                single_event = {
+                    "author": "tpe-elevate-group5-agent",
+                    "content": {
+                        "role": "model",
+                        "parts": [
+                            {"text": err_msg}
                         ]
                     },
                     "actions": {},
-                    "session_id": session_id
+                    "turn_complete": True
+                }
+                err_event = {
+                    "events": [single_event],
+                    "session_id": session_id,
+                    "author": "tpe-elevate-group5-agent",
+                    "content": {
+                        "role": "model",
+                        "parts": [
+                            {"text": err_msg}
+                        ]
+                    },
+                    "actions": {}
                 }
                 yield json.dumps(err_event) + "\n"
 
