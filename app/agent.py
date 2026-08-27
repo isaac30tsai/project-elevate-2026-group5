@@ -104,8 +104,7 @@ class HRAgentOrchestrator:
                 self.genai_client = genai.Client(
                     vertexai=True,
                     project=self.project,
-                    location=os.getenv("GOOGLE_CLOUD_LOCATION", "global"),
-                    http_options={"timeout": 30.0}
+                    location=os.getenv("GOOGLE_CLOUD_LOCATION", "global")
                 )
                 logger.info(f"Initialized Vertex AI Gemini client for {self.model_name} on {self.project} (location: {os.getenv('GOOGLE_CLOUD_LOCATION', 'global')})")
             except Exception as e:
@@ -291,7 +290,7 @@ class HRAgentOrchestrator:
                     f"4. If the user asks to verify confidential personal identity data (such as NRIC, phone numbers, or bank records) via policy search, politely state that employee identity verification cannot be performed through policy search and direct them to People Operations (people-ops@altostrat.com).\n"
                     f"5. Do NOT include bracketed debug badges, internal critic status codes, or review checklists in the response."
                 )
-                llm_res = self.genai_client.models.generate_content(
+                llm_res = await self.genai_client.aio.models.generate_content(
                     model=self.model_name,
                     contents=prompt_content,
                     config=types.GenerateContentConfig(
@@ -327,7 +326,7 @@ class HRAgentOrchestrator:
         tools = producer_result.get("tools_called", [])
         tool_outputs = producer_result.get("tool_outputs", [])
         
-        # Real Critic LLM Call via Gemini
+        # Real Critic LLM Call via Gemini (Async non-blocking event-loop)
         if self.genai_client:
             try:
                 facts_str = " ".join(tool_outputs)
@@ -342,7 +341,7 @@ class HRAgentOrchestrator:
                     f"- Ensure a polite, executive, and empathetic tone.\n"
                     f"Return ONLY the polished, final compliant response ready for the employee. Do not output review checklists or internal evaluation badges."
                 )
-                critic_res = self.genai_client.models.generate_content(
+                critic_res = await self.genai_client.aio.models.generate_content(
                     model=self.model_name,
                     contents=critic_prompt,
                     config=types.GenerateContentConfig(
