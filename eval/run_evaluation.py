@@ -24,6 +24,8 @@ async def run_benchmark():
     mock_kms.encrypt.side_effect = lambda request: MagicMock(ciphertext=b"mock-kms-wrapped-" + request["plaintext"])
     mock_kms.decrypt.side_effect = lambda request: MagicMock(plaintext=request["ciphertext"].replace(b"mock-kms-wrapped-", b""))
     orchestrator.crypto_storage.kms_client = mock_kms
+    mock_firestore = MagicMock()
+    orchestrator.crypto_storage.firestore_client = mock_firestore
     mock_bq = MagicMock()
     mock_bq.insert_rows_json.return_value = []
     orchestrator.audit_logger.bq_client = mock_bq
@@ -34,7 +36,7 @@ async def run_benchmark():
     with open(data_path2) as f: security_cases = json.load(f)
     all_test_cases = primary_cases + security_cases
     total_cases = len(all_test_cases)
-    print(f"Loaded {total_cases} benchmark test cases across 4 evaluation tiers.\n")
+    print(f"Loaded {total_cases} benchmark test cases across 4 evaluation tiers.\n", flush=True)
 
     results = []
     metric_counters = {
@@ -54,7 +56,7 @@ async def run_benchmark():
         expected_cites = tc.get("expected_citations", [])
         expected_status = tc.get("expected_status", "SUCCESS")
 
-        print(f"[{idx:02d}/{total_cases:02d}] Running {eval_id} ({tier})...", end=" ")
+        print(f"[{idx:02d}/{total_cases:02d}] Running {eval_id} ({tier})...", end=" ", flush=True)
         res = await orchestrator.run(prompt, employee_id=caller)
         actual_resp = res.get("response", "")
         actual_tools = res.get("tools_invoked", [])

@@ -81,7 +81,7 @@ class BigQueryAuditLogger:
         if self.bq_client:
             try:
                 table_ref = f"{settings.gcp_project}.{self.dataset_id}.{self.table_id}"
-                errors = self.bq_client.insert_rows_json(table_ref, [event_row])
+                errors = self.bq_client.insert_rows_json(table_ref, [event_row], timeout=3.0)
                 if errors:
                     err_msg = f"BigQuery stream insert failed on table '{table_ref}': {errors}"
                     logger.error(err_msg)

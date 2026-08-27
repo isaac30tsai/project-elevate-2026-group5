@@ -143,7 +143,7 @@ class FirestoreCryptoManager:
         if self.firestore_client:
             try:
                 doc_ref = self.firestore_client.collection("interaction_records").document(session_id)
-                doc_ref.set(envelope)
+                doc_ref.set(envelope, timeout=3.0)
                 envelope["storage_status"] = "PERSISTED"
             except Exception as e:
                 error_msg = f"Failed to persist encrypted envelope to Firestore for session '{session_id}' (employee '{employee_id}'): {e}"

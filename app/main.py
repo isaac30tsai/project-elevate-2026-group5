@@ -191,6 +191,21 @@ if HAS_FASTAPI:
                 agent_res = await agent.run(user_query, employee_id=user_id)
                 response_text = agent_res.get("response", "")
 
+                if agent_res.get("status") == "DATABASE_ERROR":
+                    err_event = {
+                        "author": "tpe-elevate-group5-agent",
+                        "content": {
+                            "role": "model",
+                            "parts": [
+                                {"text": f"System Alert: Database transaction persistence error ({agent_res.get('error')})."}
+                            ]
+                        },
+                        "actions": {"status": "DATABASE_ERROR", "error": agent_res.get("error")},
+                        "session_id": session_id
+                    }
+                    yield json.dumps(err_event) + "\n"
+                    return
+
                 # Standard Vertex AI / ADK Event Wire Format
                 event_dict = {
                     "author": "tpe-elevate-group5-agent",
