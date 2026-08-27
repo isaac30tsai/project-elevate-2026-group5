@@ -285,8 +285,15 @@ if HAS_FASTAPI:
         return res
 
     @app.get("/v1/hcm/balances")
-    async def get_hcm_balances_endpoint(employee_id: str = "EMP-558"):
-        """REST Endpoint for retrieving WorkWeek HCM Leave Balances."""
+    async def get_hcm_balances_endpoint(request: Request):
+        """REST Endpoint for retrieving WorkWeek HCM Leave Balances.
+
+        In strict compliance with D-006 (Zero Trust Identity Isolation), caller
+        identity is derived exclusively server-side from authenticated OIDC/IAP
+        headers. The employee_id parameter is never exposed or accepted via schema/query.
+        """
+        headers = dict(request.headers)
+        employee_id = GeminiEnterpriseAdapter.extract_user_identity(headers)
         res = await agent.workweek.get_employee_balances(employee_id)
         return res
 

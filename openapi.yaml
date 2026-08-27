@@ -80,14 +80,7 @@ paths:
     get:
       operationId: getHcmBalances
       summary: Retrieve WorkWeek HCM Leave Balances
-      description: Retrieve live available, accrued, and used leave balances.
-      parameters:
-      - name: employee_id
-        in: query
-        required: false
-        schema:
-          type: string
-          default: EMP-558
+      description: Retrieve live available, accrued, and used leave balances. Caller identity is cryptographically derived server-side from OIDC/IAP JWT tokens (D-006 Zero Trust Identity Isolation).
       responses:
         '200':
           description: Accrued, used, and available vacation/sick balances

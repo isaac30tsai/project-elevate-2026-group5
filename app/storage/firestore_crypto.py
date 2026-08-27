@@ -23,6 +23,14 @@ class FirestoreStorageError(RuntimeError):
     """Raised when an encrypted envelope fails to persist to Google Cloud Firestore."""
     pass
 
+class KMSEncryptionError(RuntimeError):
+    """Raised when Google Cloud KMS CMEK key wrapping fails."""
+    pass
+
+class KMSDecryptionError(RuntimeError):
+    """Raised when Google Cloud KMS CMEK key unwrapping fails."""
+    pass
+
 class FirestoreCryptoManager:
     """Two-tier CMEK Envelope Encryption Manager using AES-256-GCM and Google Cloud KMS."""
 
@@ -41,51 +49,60 @@ class FirestoreCryptoManager:
             try:
                 self.kms_client = kms_v1.KeyManagementServiceClient()
             except Exception as e:
-                logger.debug(f"Cloud KMS Client initialization fallback: {e}")
+                logger.warning(f"Cloud KMS Client initialization failed: {e}")
             try:
                 self.firestore_client = firestore.Client(project=self.project, database=self.db_name)
             except Exception as e:
                 logger.debug(f"Cloud Firestore Client initialization fallback: {e}")
 
     def _wrap_dek_with_kms(self, raw_dek: bytes) -> str:
-        """Wrap 256-bit DEK using Google Cloud KMS KEK (Key Encryption Key)."""
-        if self.kms_client:
-            try:
-                response = self.kms_client.encrypt(
-                    request={
-                        "name": self.kms_key_name,
-                        "plaintext": raw_dek
-                    }
-                )
-                return base64.b64encode(response.ciphertext).decode("utf-8")
-            except Exception as e:
-                logger.debug(f"KMS remote wrap fallback: {e}")
+        """Wrap 256-bit DEK using Google Cloud KMS KEK (Key Encryption Key).
         
-        # Local cryptographic mock wrapper for offline testing
-        # XOR-masks DEK with SHA-256 digest of key name
-        import hashlib
-        mask = hashlib.sha256(self.kms_key_name.encode()).digest()
-        wrapped = bytes(b1 ^ b2 for b1, b2 in zip(raw_dek, mask))
-        return base64.b64encode(wrapped).decode("utf-8")
+        Strict CMEK Envelope Encryption: Insecure local XOR masking fallbacks
+        are strictly prohibited to prevent cryptographic boundary bypasses.
+        """
+        if not self.kms_client:
+            raise KMSEncryptionError(
+                "Google Cloud KMS client is not initialized. Insecure local XOR masking fallback "
+                "is strictly prohibited by CMEK security policy."
+            )
+        try:
+            response = self.kms_client.encrypt(
+                request={
+                    "name": self.kms_key_name,
+                    "plaintext": raw_dek
+                }
+            )
+            return base64.b64encode(response.ciphertext).decode("utf-8")
+        except Exception as e:
+            error_msg = f"Cloud KMS CMEK encryption failed for key '{self.kms_key_name}': {e}"
+            logger.error(error_msg, exc_info=True)
+            raise KMSEncryptionError(error_msg) from e
 
     def _unwrap_dek_with_kms(self, wrapped_dek_b64: str) -> bytes:
-        """Unwrap encrypted DEK using Google Cloud KMS."""
-        wrapped_bytes = base64.b64decode(wrapped_dek_b64)
-        if self.kms_client:
-            try:
-                response = self.kms_client.decrypt(
-                    request={
-                        "name": self.kms_key_name,
-                        "ciphertext": wrapped_bytes
-                    }
-                )
-                return response.plaintext
-            except Exception as e:
-                logger.debug(f"KMS remote unwrap fallback: {e}")
-
-        import hashlib
-        mask = hashlib.sha256(self.kms_key_name.encode()).digest()
-        return bytes(b1 ^ b2 for b1, b2 in zip(wrapped_bytes, mask))
+        """Unwrap encrypted DEK using Google Cloud KMS.
+        
+        Strict CMEK Envelope Encryption: Insecure local XOR masking fallbacks
+        are strictly prohibited to prevent cryptographic boundary bypasses.
+        """
+        if not self.kms_client:
+            raise KMSDecryptionError(
+                "Google Cloud KMS client is not initialized. Insecure local XOR masking fallback "
+                "is strictly prohibited by CMEK security policy."
+            )
+        try:
+            wrapped_bytes = base64.b64decode(wrapped_dek_b64)
+            response = self.kms_client.decrypt(
+                request={
+                    "name": self.kms_key_name,
+                    "ciphertext": wrapped_bytes
+                }
+            )
+            return response.plaintext
+        except Exception as e:
+            error_msg = f"Cloud KMS CMEK decryption failed for key '{self.kms_key_name}': {e}"
+            logger.error(error_msg, exc_info=True)
+            raise KMSDecryptionError(error_msg) from e
 
     def encrypt_transcript(self, raw_transcript: Dict[str, Any], fail_silently: bool = True) -> Dict[str, Any]:
         """Cryptographically encrypt conversation transcript using real AES-256-GCM."""
