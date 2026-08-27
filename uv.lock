@@ -3,7 +3,7 @@ revision = 1
 requires-python = ">=3.11"
 
 [[package]]
-name = "altostrat-hr-agent"
+name = "tpe-elevate-group5-agent"
 version = "1.0.0"
 source = { virtual = "." }
 dependencies = [

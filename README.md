@@ -62,7 +62,7 @@ python eval/run_evaluation.py
 ## 3. Directory Structure
 
 ```
-my-agent/
+tpe-elevate-group5-agent/
 ├── app/                                 # Core agent implementation
 │   ├── agent.py                         # ADK Dual-Agent Producer-Critic Orchestrator
 │   ├── config.py                        # Centralized Environment & Secret Configuration

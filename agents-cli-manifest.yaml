@@ -1,6 +1,6 @@
 schema_version: "v1"
 agent:
-  name: "altostrat-hr-agent"
+  name: "tpe-elevate-group5-agent"
   version: "1.0.0"
   description: "Altostrat HR Agentic Solution (MVP 1)"
   entrypoint: "app.main:app"

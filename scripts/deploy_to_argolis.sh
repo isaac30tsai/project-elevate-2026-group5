@@ -3,7 +3,7 @@ set -euo pipefail
 
 PROJECT_ID="${GCP_PROJECT:-junho-elevate}"
 REGION="${GCP_REGION:-asia-southeast1}"
-SERVICE_NAME="altostrat-hr-agent"
+SERVICE_NAME="tpe-elevate-group5-agent"
 MCP_TOKEN="${MCP_AUTH_TOKEN:-mcp_awThuI7rWgonvsSO4WInzJ9IgB-yAT4kjALp200kFDA}"
 
 echo "================================================================================"

@@ -1,9 +1,9 @@
 # Comprehensive Agent Evaluation Report
 
 **Evaluation Benchmark Suite:** Altostrat HR Agentic Solution Benchmark Suite  
-**Evaluated Artifact:** `altostrat-hr-agent` (Dual-Agent Producer-Critic on Google ADK 2.0)  
+**Evaluated Artifact:** `tpe-elevate-group5-agent` (Dual-Agent Producer-Critic on Google ADK 2.0)  
 **Total Executed Fixtures:** 12 Verified Benchmark Fixtures  
-**Overall Execution Pass Rate:** **100.0%** (12/12 Passed in 1.87s)  
+**Overall Execution Pass Rate:** **100.0%** (12/12 Passed in 1.38s)  
 **Overall Execution Status:** `PASSED`
 
 ---

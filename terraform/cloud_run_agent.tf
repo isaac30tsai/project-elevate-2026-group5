@@ -1,7 +1,7 @@
 # Cloud Run Agent Runtime for Dual-Agent Producer-Critic Architecture
 
 resource "google_cloud_run_v2_service" "hr_agent_service" {
-  name     = "altostrat-hr-agent-${var.environment}"
+  name     = "tpe-elevate-group5-agent-${var.environment}"
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
 
@@ -16,7 +16,7 @@ resource "google_cloud_run_v2_service" "hr_agent_service" {
     max_instance_request_concurrency = 80
 
     containers {
-      image = "gcr.io/${var.project_id}/altostrat-hr-agent:latest"
+      image = "gcr.io/${var.project_id}/tpe-elevate-group5-agent:latest"
 
       resources {
         limits = {

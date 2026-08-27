@@ -4,7 +4,7 @@ info:
   description: Enterprise REST Gateway for Gemini Enterprise Front Door and Google Workspace Chat
   version: 1.0.0
 servers:
-  - url: https://altostrat-hr-agent-dev.asia-southeast1.run.app
+  - url: https://tpe-elevate-group5-agent-dev.asia-southeast1.run.app
     description: Dev Cloud Run Agent Runtime
 paths:
   /gemini-enterprise/chat:

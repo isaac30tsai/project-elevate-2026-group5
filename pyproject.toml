@@ -1,5 +1,5 @@
 [project]
-name = "altostrat-hr-agent"
+name = "tpe-elevate-group5-agent"
 version = "1.0.0"
 description = "Altostrat HR Agentic Solution (MVP 1) built on Google ADK 2.0 and FastMCP"
 readme = "README.md"

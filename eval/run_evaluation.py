@@ -107,7 +107,7 @@ async def run_benchmark():
         "# Comprehensive Agent Evaluation Report",
         "",
         "**Evaluation Benchmark Suite:** Altostrat HR Agentic Solution Benchmark Suite  ",
-        "**Evaluated Artifact:** `altostrat-hr-agent` (Dual-Agent Producer-Critic on Google ADK 2.0)  ",
+        "**Evaluated Artifact:** `tpe-elevate-group5-agent` (Dual-Agent Producer-Critic on Google ADK 2.0)  ",
         f"**Total Executed Fixtures:** {total_cases} Verified Benchmark Fixtures  ",
         f"**Overall Execution Pass Rate:** **{pass_rate:.1f}%** ({total_passed}/{total_cases} Passed in {elapsed:.2f}s)  ",
         "**Overall Execution Status:** `PASSED`",

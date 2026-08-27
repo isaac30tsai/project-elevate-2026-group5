@@ -7,7 +7,7 @@
   "contact_email": "people-ops@altostrat.com",
   "api_spec": {
     "type": "OPEN_API_3_0",
-    "url": "https://altostrat-hr-agent-dev.asia-southeast1.run.app/openapi.json"
+    "url": "https://tpe-elevate-group5-agent-dev.asia-southeast1.run.app/openapi.json"
   },
   "auth": {
     "type": "OAUTH2_BEARER",

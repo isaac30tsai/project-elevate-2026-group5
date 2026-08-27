@@ -37,7 +37,7 @@ if HAS_FASTAPI:
         """Liveness & Readiness probe endpoint."""
         return {
             "status": "HEALTHY",
-            "service": "altostrat-hr-agent",
+            "service": "tpe-elevate-group5-agent",
             "model": settings.gemini_model,
             "project": settings.gcp_project
         }
