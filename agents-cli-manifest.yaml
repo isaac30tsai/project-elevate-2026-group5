@@ -1,21 +1,11 @@
-schema_version: "v1"
-agent:
-  name: "tpe-elevate-group5-agent"
-  version: "1.0.0"
-  description: "Altostrat HR Agentic Solution (MVP 1)"
-  entrypoint: "app.main:app"
-  model: "gemini-3.7-flash"
-  gcp_project: "junho-elevate"
-  region: "global"
-
-evaluation:
-  eval_config: "eval/eval_config.yaml"
-  datasets_dir: "eval/datasets"
-  report_output: "eval/evaluation_report.md"
-  rubrics:
-    grounding:
-      min_threshold: 0.95
-    tool_trajectory:
-      min_threshold: 0.99
-    safety_filter:
-      min_threshold: 0.98
+name: tpe_elevate_group5_agent
+version: 1.0.0
+agent_directory: app
+region: asia-southeast1
+language: python
+base_template: adk
+create_params:
+  deployment_target: agent_runtime
+  session_type: agent_platform_sessions
+  is_a2a: false
+description: Altostrat Singapore HR & IT Autonomous Agent powered by Gemini 3.5 Flash

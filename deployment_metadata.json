@@ -1,0 +1,9 @@
+{
+  "pending_operation": {
+    "operation_name": "projects/636377148299/locations/asia-southeast1/reasoningEngines/5083095031766581248/operations/4312018247445643264",
+    "project": "junho-elevate",
+    "location": "asia-southeast1",
+    "deployment_target": "agent_runtime",
+    "started_at": "2026-08-27T09:02:16.359847+00:00"
+  }
+}

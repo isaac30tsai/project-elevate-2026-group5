@@ -83,6 +83,54 @@ resource "google_bigquery_table" "compliance_audit_log" {
       type: "STRING",
       mode: "REQUIRED",
       description: "Cloud Trace distributed correlation ID"
+    },
+    {
+      name: "prompt_token_count",
+      type: "INTEGER",
+      mode: "NULLABLE",
+      description: "Input prompt token count for FinOps accounting"
+    },
+    {
+      name: "candidates_token_count",
+      type: "INTEGER",
+      mode: "NULLABLE",
+      description: "Output candidates token count"
+    },
+    {
+      name: "thoughts_token_count",
+      type: "INTEGER",
+      mode: "NULLABLE",
+      description: "Gemini 3.5 reasoning thought token count"
+    },
+    {
+      name: "total_token_count",
+      type: "INTEGER",
+      mode: "NULLABLE",
+      description: "Total token usage per transaction"
+    },
+    {
+      name: "estimated_cost_usd",
+      type: "FLOAT",
+      mode: "NULLABLE",
+      description: "Estimated inference cost in USD"
+    },
+    {
+      name: "model_name",
+      type: "STRING",
+      mode: "NULLABLE",
+      description: "Gemini model version string"
+    },
+    {
+      name: "traffic_type",
+      type: "STRING",
+      mode: "NULLABLE",
+      description: "ON_DEMAND | PROVISIONED"
+    },
+    {
+      name: "latency_ms",
+      type: "FLOAT",
+      mode: "NULLABLE",
+      description: "End-to-end execution latency in milliseconds"
     }
   ])
 }
