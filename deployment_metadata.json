@@ -3,5 +3,9 @@
   "deployment_target": "agent_runtime",
   "is_a2a": false,
   "agent_directory": "app",
-  "deployment_timestamp": "2026-08-27T16:32:52.085945+00:00"
+  "deployment_timestamp": "2026-08-27T16:37:04.144421+00:00",
+  "latest_verified_deployment_operation": "7350505436665085952",
+  "latest_commit": "c6fea39",
+  "status": "VERIFIED_PRODUCTION",
+  "response_polishing": "EXECUTIVE_NATURAL_SYNTHESIS"
 }
