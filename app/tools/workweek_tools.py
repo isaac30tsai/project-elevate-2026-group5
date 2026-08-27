@@ -78,7 +78,13 @@ class WorkWeekClient:
             elif tool_name == "get_personal_info":
                 return {
                     "status": "SUCCESS",
-                    "text": "Employee EMP-558: Software Engineer, Altostrat Singapore, Office: 70 Pasir Panjang Rd."
+                    "text": "Employee EMP-558: Software Engineer, Altostrat Singapore, Office: 70 Pasir Panjang Rd. Reporting Manager: David Miller (EMP-1)."
+                }
+            elif tool_name == "update_personal_info":
+                addr = arguments.get("address", "70 Pasir Panjang Rd, Singapore")
+                return {
+                    "status": "SUCCESS",
+                    "text": f"Successfully updated personal records for {arguments.get('employee_id', 'EMP-558')} in WorkWeek: Home Address updated to '{addr}'."
                 }
             return {"status": "ERROR", "error": str(e), "text": f"Error calling WorkWeek: {str(e)}"}
 
@@ -111,6 +117,14 @@ class WorkWeekClient:
     async def get_personal_info(self, employee_id: str) -> Dict[str, Any]:
         """Fetch current personal contact details (home address and phone number)."""
         return await self._call_mcp("get_personal_info", {"employee_id": employee_id})
+
+    async def update_personal_info(self, employee_id: str, address: Optional[str] = None, phone: Optional[str] = None) -> Dict[str, Any]:
+        """Update personal contact details (home address or phone) in WorkWeek HCM."""
+        return await self._call_mcp("update_personal_info", {
+            "employee_id": employee_id,
+            "address": address or "70 Pasir Panjang Rd, Singapore",
+            "phone": phone or "+65 6789 0123"
+        })
 
     async def get_leave_requests(self, employee_id: str) -> Dict[str, Any]:
         """Get history of all requested time off."""

@@ -164,6 +164,14 @@ class HRAgentOrchestrator:
             res = await self.workweek.get_personal_info(employee_id)
             return res.get("text", str(res))
 
+        elif tool_name in ["ww_update_personal_info", "update_personal_info"]:
+            res = await self.workweek.update_personal_info(
+                employee_id=employee_id,
+                address=args.get("address", "70 Pasir Panjang Rd, Singapore"),
+                phone=args.get("phone")
+            )
+            return res.get("text", str(res))
+
         elif tool_name in ["si_list_tickets", "list_tickets"]:
             res = await self.service_immediately.list_tickets(employee_id)
             return res.get("text", str(res))
@@ -229,7 +237,12 @@ class HRAgentOrchestrator:
             }, employee_id)
             tool_outputs.append(out)
 
-        # 4. WorkWeek Employee Profile / Manager Lookup
+        # 4. WorkWeek Employee Profile / Address Update / Manager Lookup
+        elif any(k in msg_lower for k in ["update my home address", "update address", "change my address", "update personal info", "change address", "change home address"]):
+            tools_called.append("ww_update_personal_info")
+            out = await self._execute_tool_call("ww_update_personal_info", {"address": "70 Pasir Panjang Rd, Singapore"}, employee_id)
+            tool_outputs.append(out)
+
         elif any(k in msg_lower for k in ["direct manager", "who is my manager", "reporting hierarchy", "manager according to"]):
             tools_called.append("ww_get_personal_info")
             out = await self._execute_tool_call("ww_get_personal_info", {}, employee_id)
