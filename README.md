@@ -151,16 +151,16 @@ This section outlines the primary channels for interacting with the agent and pr
 ### 4.3 Automated Query Testing & cURL Verification
 
 ```bash
-# 1. Cloud Run 배포 에이전트 대상 11대 전체 쿼리 자동 테스트 실행
+# 1. Automated end-to-end verification against deployed Cloud Run service (All 11 test cases)
 python3 scripts/test_agent_queries.py --target cloudrun
 
-# 2. 특정 카테고리만 선별 테스트 (예: policy, hcm, itsm, saga, security)
+# 2. Filter by specific category (e.g., policy, hcm, itsm, saga, security)
 python3 scripts/test_agent_queries.py --category policy
 
-# 3. 로컬 인스턴스 테스트
+# 3. Test against local running instance (http://localhost:8080)
 python3 scripts/test_agent_queries.py --target local
 
-# 4. cURL 직접 호출 예시
+# 4. Direct cURL invocation with Cloud Run IAM identity token
 ID_TOKEN=$(gcloud auth print-identity-token)
 curl -X POST https://tpe-elevate-group5-agent-lydisbk46a-as.a.run.app/gemini-enterprise/chat \
   -H "Authorization: Bearer $ID_TOKEN" \
