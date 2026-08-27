@@ -1,15 +1,28 @@
-"""BigQuery Compliance Lakehouse Audit Logger with 90-Day Partition Expiration."""
-from typing import Dict, Any
+"""BigQuery Compliance Lakehouse Audit Logger with Partitioned Table Inserts."""
+from typing import Dict, Any, Optional
 import logging
 from datetime import datetime
 import uuid
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+try:
+    from google.cloud import bigquery
+    HAS_BQ_SDK = True
+except ImportError:
+    HAS_BQ_SDK = False
+
 class BigQueryAuditLogger:
-    def __init__(self, dataset_id: str = "altostrat_hr_analytics"):
-        self.dataset_id = dataset_id
+    def __init__(self, dataset_id: Optional[str] = None):
+        self.dataset_id = dataset_id or settings.bigquery_dataset
         self.table_id = "compliance_audit_log"
+        self.bq_client = None
+        if HAS_BQ_SDK:
+            try:
+                self.bq_client = bigquery.Client(project=settings.gcp_project)
+            except Exception as e:
+                logger.debug(f"BigQuery Client offline fallback: {e}")
 
     async def log_audit_event(
         self,
@@ -19,7 +32,7 @@ class BigQueryAuditLogger:
         compliance_verdict: str,
         trace_id: str
     ) -> Dict[str, Any]:
-        """Record structured compliance audit row."""
+        """Record structured compliance audit row into BigQuery."""
         event_row = {
             "event_id": str(uuid.uuid4()),
             "event_timestamp": datetime.utcnow().isoformat(),
@@ -30,5 +43,14 @@ class BigQueryAuditLogger:
             "compliance_verdict": compliance_verdict,
             "trace_id": trace_id
         }
-        logger.info(f"BigQuery Compliance Event Recorded: {event_row['event_id']} [{event_type}]")
+
+        if self.bq_client:
+            try:
+                table_ref = f"{settings.gcp_project}.{self.dataset_id}.{self.table_id}"
+                errors = self.bq_client.insert_rows_json(table_ref, [event_row])
+                if errors:
+                    logger.warning(f"BigQuery insert errors: {errors}")
+            except Exception as e:
+                logger.warning(f"BigQuery stream insert error: {e}")
+
         return event_row

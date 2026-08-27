@@ -1,7 +1,10 @@
-"""Centralized Configuration Management with Environment & Secret Fallbacks."""
+"""Centralized Configuration Management with Environment Variable Externalization."""
 import os
 from dataclasses import dataclass
 from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class Settings:
@@ -14,7 +17,7 @@ class Settings:
     gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-3.7-flash")
     temperature: float = float(os.getenv("TEMPERATURE", "0.2"))
     
-    # SaaS FastMCP Endpoints
+    # SaaS FastMCP Endpoints (Configured via Environment Variables)
     workweek_base_url: str = os.getenv(
         "WORKWEEK_BASE_URL",
         "https://mock-saas.aishprabhat.demo.altostrat.com/work-week/mcp/"
@@ -23,10 +26,8 @@ class Settings:
         "SERVICE_IMMEDIATELY_BASE_URL",
         "https://mock-saas.aishprabhat.demo.altostrat.com/service-immediately/mcp/"
     )
-    mcp_auth_token: str = os.getenv(
-        "MCP_AUTH_TOKEN",
-        "mcp_awThuI7rWgonvsSO4WInzJ9IgB-yAT4kjALp200kFDA"
-    )
+    # Externalized MCP Authentication Token (No hardcoded fallback secret)
+    mcp_auth_token: str = os.getenv("MCP_AUTH_TOKEN", "")
     
     # Knowledge & RAG
     datastore_id: str = os.getenv("DATASTORE_ID", "altostrat-hr-policy-datastore-dev")
@@ -37,3 +38,6 @@ class Settings:
     bigquery_dataset: str = os.getenv("BIGQUERY_DATASET", "altostrat_hr_analytics")
 
 settings = Settings()
+
+if not settings.mcp_auth_token:
+    logger.warning("MCP_AUTH_TOKEN environment variable is not set. SaaS tool invocations will require authentication injection.")

@@ -10,9 +10,10 @@ echo "==========================================================================
 echo "  Deploying Altostrat HR & IT Agentic Solution to Argolis Project: ${PROJECT_ID}"
 echo "================================================================================"
 
-# 1. Ensure required APIs are enabled
+# 1. Enable all required Google Cloud APIs (including Cloud Build and Discovery Engine)
 echo "1. Enabling required Google Cloud APIs..."
 gcloud services enable \
+  cloudbuild.googleapis.com \
   cloudaicompanion.googleapis.com \
   discoveryengine.googleapis.com \
   chat.googleapis.com \

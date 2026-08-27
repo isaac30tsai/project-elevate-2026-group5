@@ -19,4 +19,4 @@ COPY gemini-enterprise-extension.json openapi.yaml ./
 
 EXPOSE 8080
 
-CMD ["python", "app/main.py"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
