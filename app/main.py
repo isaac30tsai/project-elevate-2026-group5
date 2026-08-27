@@ -168,22 +168,83 @@ if HAS_FASTAPI:
                 yield json.dumps(res_obj) + "\n"
             return StreamingResponse(sess_gen(), media_type="application/json")
 
-        # 2. Extract user query string from heterogeneous payload structures
-        raw_msg = input_data.get("message")
-        if isinstance(raw_msg, dict):
-            parts = raw_msg.get("parts", [])
-            extracted = " ".join(p.get("text", "") for p in parts if isinstance(p, dict) and "text" in p)
-            user_query = extracted or raw_msg.get("text", "")
-        elif isinstance(raw_msg, str):
-            user_query = raw_msg
-        else:
-            user_query = input_data.get("query") or input_data.get("prompt") or input_data.get("text") or ""
+        # 2. Robust Unpacking for Gemini Enterprise & Google ADK Protocol
+        parsed_rj = {}
+        req_json_raw = input_data.get("request_json") or body.get("request_json")
+        if req_json_raw:
+            try:
+                parsed_rj = json.loads(req_json_raw) if isinstance(req_json_raw, str) else req_json_raw
+            except Exception as e:
+                logger.warning(f"Error parsing request_json: {e}")
+
+        # Extract user query string from heterogeneous payload structures
+        user_query = ""
+        # Priority 1: Check parsed request_json (Gemini Enterprise)
+        if parsed_rj:
+            if "message" in parsed_rj:
+                msg_obj = parsed_rj["message"]
+                if isinstance(msg_obj, dict):
+                    parts = msg_obj.get("parts", [])
+                    user_query = " ".join(p.get("text", "") for p in parts if isinstance(p, dict) and "text" in p) or msg_obj.get("text", "")
+                elif isinstance(msg_obj, str):
+                    user_query = msg_obj
+            if not user_query and "events" in parsed_rj:
+                for ev in reversed(parsed_rj.get("events", [])):
+                    c = ev.get("content", {})
+                    if ev.get("author") in ["user", "human"] or c.get("role") == "user":
+                        parts = c.get("parts", [])
+                        user_query = " ".join(p.get("text", "") for p in parts if isinstance(p, dict) and "text" in p) or c.get("text", "")
+                        if user_query:
+                            break
+
+        # Priority 2: Direct input_data structure
+        if not user_query:
+            raw_msg = input_data.get("message")
+            if isinstance(raw_msg, dict):
+                parts = raw_msg.get("parts", [])
+                user_query = " ".join(p.get("text", "") for p in parts if isinstance(p, dict) and "text" in p) or raw_msg.get("text", "")
+            elif isinstance(raw_msg, str):
+                user_query = raw_msg
+            elif isinstance(raw_msg, list):
+                user_query = " ".join(p.get("text", "") for p in raw_msg if isinstance(p, dict) and "text" in p)
+            else:
+                user_query = input_data.get("query") or input_data.get("prompt") or input_data.get("text") or ""
+
+        # Priority 3: Events list in input_data
+        if not user_query and "events" in input_data:
+            for ev in reversed(input_data.get("events", [])):
+                c = ev.get("content", {})
+                if ev.get("author") in ["user", "human"] or c.get("role") == "user":
+                    parts = c.get("parts", [])
+                    user_query = " ".join(p.get("text", "") for p in parts if isinstance(p, dict) and "text" in p) or c.get("text", "")
+                    if user_query:
+                        break
 
         if not user_query:
             user_query = "Hello"
 
-        user_id = input_data.get("user_id") or input_data.get("employee_id") or "EMP-558"
-        session_id = input_data.get("session_id") or f"sess-{uuid.uuid4().hex[:8]}"
+        # 3. Resolve user identity and session ID
+        raw_uid = (
+            parsed_rj.get("user_id") or parsed_rj.get("userId")
+            or input_data.get("user_id") or input_data.get("userId")
+            or input_data.get("employee_id") or input_data.get("caller_id")
+            or request.headers.get("x-goog-authenticated-user-email")
+            or "EMP-558"
+        )
+        if "@" in str(raw_uid):
+            email_clean = str(raw_uid).replace("accounts.google.com:", "")
+            if "junhojang" in email_clean.lower():
+                user_id = "EMP-558"
+            else:
+                user_id = "EMP-558"
+        else:
+            user_id = str(raw_uid)
+
+        session_id = (
+            parsed_rj.get("session_id") or parsed_rj.get("sessionId")
+            or input_data.get("session_id") or input_data.get("sessionId")
+            or f"sess-{uuid.uuid4().hex[:8]}"
+        )
 
         async def reasoning_stream_generator():
             try:

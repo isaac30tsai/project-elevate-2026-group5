@@ -95,10 +95,20 @@ class ModelArmorClient:
                     "latency_ms": elapsed_ms
                 }
 
-        # 3. Singapore NRIC PII Masking
+        # 3. Prohibited Scope Guardrail: Confidential Payroll & Compensation (BRD §2.2 Out-of-Scope)
+        if any(k in prompt.lower() for k in ["salary", "payroll", "compensation", "payslip", "pay slip", "bank account", "remuneration"]):
+            elapsed_ms = (time.time() - start_time) * 1000
+            logger.warning("Model Armor Triggered: Prohibited payroll/salary query detected")
+            return False, f"Access Denied: BLOCKED. Salary, payroll, and compensation inquiries are strictly confidential and out of scope for this autonomous assistant (BRD §2.2). Please contact People Operations / Payroll directly.", {
+                "reason": "PROHIBITED_PAYROLL_QUERY",
+                "caller_id": caller_id,
+                "latency_ms": elapsed_ms
+            }
+
+        # 4. Singapore NRIC PII Masking
         sanitized_text = re.sub(r"[STFGstfg][0-9]{7}[A-Za-z]", "[REDACTED_NRIC]", prompt)
 
-        # 4. Real Google Cloud Model Armor REST Service Call
+        # 5. Real Google Cloud Model Armor REST Service Call
         cloud_safe, cloud_text, cloud_meta = await self._query_cloud_model_armor(sanitized_text)
         if not cloud_safe:
             elapsed_ms = (time.time() - start_time) * 1000
