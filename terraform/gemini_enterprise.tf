@@ -48,20 +48,50 @@ resource "google_discovery_engine_chat_engine" "hr_chat_engine" {
   ]
 }
 
-# Automated OpenAPI Extension Manifest Registration for Gemini Enterprise Front Door
-resource "null_resource" "gemini_enterprise_openapi_extension" {
+# Automated Gemini Enterprise Agent Registration for tpe-elevate-training Front Door
+resource "null_resource" "gemini_enterprise_agent_registration" {
   triggers = {
-    service_url   = google_cloud_run_v2_service.hr_agent_service.uri
-    manifest_hash = filemd5("${path.module}/../openapi.json")
+    service_url = google_cloud_run_v2_service.hr_agent_service.uri
   }
 
   provisioner "local-exec" {
-    command = "echo 'OpenAPI Extension registered for Gemini Enterprise Front Door at: ${google_cloud_run_v2_service.hr_agent_service.uri}/openapi.json'"
+    command = <<EOT
+      python3 -c '
+import subprocess, json
+
+token = subprocess.run(["gcloud", "auth", "print-access-token"], capture_output=True, text=True).stdout.strip()
+url = "https://discoveryengine.googleapis.com/v1alpha/projects/636377148299/locations/global/collections/default_collection/engines/tpe-elevate-training_1787798925486/assistants/default_assistant/agents?agentId=tpe-elevate-group5-agent"
+
+agent_card = {
+    "protocolVersion": "0.3.0",
+    "name": "tpe-elevate-group5-agent",
+    "description": "Altostrat Singapore HR & IT Autonomous Assistant",
+    "url": "${google_cloud_run_v2_service.hr_agent_service.uri}",
+    "version": "1.0.0",
+    "capabilities": {"streaming": False},
+    "defaultInputModes": ["text"],
+    "defaultOutputModes": ["text"],
+    "skills": [
+        {"id": "hr-policy-qa", "name": "HR Policy Q&A", "description": "Grounded Singapore HR handbook policies Sections 6 to 35", "tags": ["hr", "policy", "handbook"]},
+        {"id": "workweek-hcm", "name": "WorkWeek HCM Leave Management", "description": "Check leave balances and request time off", "tags": ["leave", "vacation", "sick"]},
+        {"id": "service-immediately", "name": "ServiceImmediately ITSM Ticketing", "description": "Create and inspect IT support incident tickets", "tags": ["it", "incident", "ticket"]}
+    ]
+}
+
+payload = {
+    "displayName": "tpe-elevate-group5-agent",
+    "description": "Altostrat Singapore HR & IT Autonomous Assistant powered by Gemini 3.5 Flash",
+    "icon": {"uri": "https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/smart_toy/default/24px.svg"},
+    "a2aAgentDefinition": {"jsonAgentCard": json.dumps(agent_card)}
+}
+
+subprocess.run(["curl", "-s", "-X", "POST", "-H", f"Authorization: Bearer {token}", "-H", "X-Goog-User-Project: ${var.project_id}", "-H", "Content-Type: application/json", "-d", json.dumps(payload), url], check=True)
+'
+    EOT
   }
 
   depends_on = [
-    google_cloud_run_v2_service.hr_agent_service,
-    google_discovery_engine_chat_engine.hr_chat_engine
+    google_cloud_run_v2_service.hr_agent_service
   ]
 }
 
