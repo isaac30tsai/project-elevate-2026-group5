@@ -14,6 +14,20 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+def redact_pii(text: str) -> str:
+    """Comprehensive PII Redaction adhering to Singapore PDPA & SDD §4.5 specification.
+    Masks Singapore NRIC/FIN, phone numbers, and financial/card information.
+    """
+    if not text or not isinstance(text, str):
+        return text
+    # 1. Singapore NRIC / FIN Masking (S/T/F/G/M series, e.g., S1234567A, T9876543Z)
+    text = re.sub(r"\b[STFGMstfgm][0-9]{7}[A-Za-z]\b", "[REDACTED_NRIC]", text)
+    # 2. Singapore Contact Phone Numbers (+65 or 8-digit mobile/fixed line starting with 6, 8, 9)
+    text = re.sub(r"(?:\+65\s?)?[689][0-9]{3}[- ]?[0-9]{4}\b", "[REDACTED_PHONE]", text)
+    # 3. Credit Card / Bank Account Numbers (16-digit spaced/dashed)
+    text = re.sub(r"\b(?:\d{4}[- ]?){3}\d{4}\b", "[REDACTED_CARD]", text)
+    return text
+
 class ModelArmorClient:
     """Production Client for Google Cloud Model Armor Prompt Shield with <50ms local safety gate."""
 
@@ -105,8 +119,8 @@ class ModelArmorClient:
                 "latency_ms": elapsed_ms
             }
 
-        # 4. Singapore NRIC PII Masking
-        sanitized_text = re.sub(r"[STFGstfg][0-9]{7}[A-Za-z]", "[REDACTED_NRIC]", prompt)
+        # 4. Multi-Pattern Sensitive Data Protection (Singapore NRIC, Phone, Financial Cards)
+        sanitized_text = redact_pii(prompt)
 
         # 5. Real Google Cloud Model Armor REST Service Call
         cloud_safe, cloud_text, cloud_meta = await self._query_cloud_model_armor(sanitized_text)
@@ -155,13 +169,13 @@ class ModelArmorPlugin(BasePlugin):
         return await self.armor_client.inspect_prompt(prompt, caller_id=caller_id)
 
     async def after_model(self, response_text: str, caller_id: str = "EMP-558") -> Tuple[bool, str, Dict[str, Any]]:
-        """Procedural hook for response inspection after model generation."""
-        sanitized = re.sub(r"[STFGstfg][0-9]{7}[A-Za-z]", "[REDACTED_NRIC]", response_text)
+        """Procedural hook for response inspection after model generation (Sanitizes PII)."""
+        sanitized = redact_pii(response_text)
         return True, sanitized, {"status": "AFTER_MODEL_VERIFIED"}
 
     async def after_tool(self, tool_name: str, tool_output: str, caller_id: str = "EMP-558") -> Tuple[bool, str, Dict[str, Any]]:
-        """Procedural hook for tool output inspection before model ingestion."""
-        sanitized = re.sub(r"[STFGstfg][0-9]{7}[A-Za-z]", "[REDACTED_NRIC]", tool_output)
+        """Procedural hook for tool output inspection before model ingestion (Sanitizes PII)."""
+        sanitized = redact_pii(tool_output)
         return True, sanitized, {"status": "AFTER_TOOL_VERIFIED"}
 
     # Official ADK BasePlugin Callback Hooks
