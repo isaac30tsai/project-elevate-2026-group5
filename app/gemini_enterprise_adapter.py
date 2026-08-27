@@ -70,18 +70,26 @@ class GeminiEnterpriseAdapter:
                                         "buttonList": {
                                             "buttons": [
                                                 {
-                                                    "text": "View Leave Balances",
+                                                    "text": "View Policy Handbook",
                                                     "onClick": {
-                                                        "action": {
-                                                            "function": "fetch_balances"
+                                                        "openLink": {
+                                                            "url": "https://docs.google.com/document/d/1omb7qXPLlY6H5PSH-dTra8pYwDX9fWG2NLqUdHFPZ3M/edit?usp=sharing&resourcekey=0-FRWtPHULk0dwogTNAEgNfw"
                                                         }
                                                     }
                                                 },
                                                 {
-                                                    "text": "Open IT Support Ticket",
+                                                    "text": "WorkWeek HCM",
                                                     "onClick": {
-                                                        "action": {
-                                                            "function": "create_it_ticket"
+                                                        "openLink": {
+                                                            "url": "https://mock-saas.aishprabhat.demo.altostrat.com/work-week/"
+                                                        }
+                                                    }
+                                                },
+                                                {
+                                                    "text": "ServiceImmediately ITSM",
+                                                    "onClick": {
+                                                        "openLink": {
+                                                            "url": "https://mock-saas.aishprabhat.demo.altostrat.com/service-immediately/"
                                                         }
                                                     }
                                                 }
