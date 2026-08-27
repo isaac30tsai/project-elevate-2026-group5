@@ -13,7 +13,7 @@ from app.tools.service_immediately_tools import ServiceImmediatelyClient
 from app.tools.rag_tools import PolicyRAGClient
 from app.guardrails.model_armor import ModelArmorClient, ModelArmorPlugin
 from app.guardrails.dfa_validators import DFAValidator
-from app.storage.firestore_crypto import FirestoreCryptoManager, FirestoreStorageError
+from app.storage.firestore_crypto import FirestoreCryptoManager, FirestoreStorageError, KMSEncryptionError
 from app.storage.bigquery_audit import BigQueryAuditLogger, BigQueryAuditError
 
 logger = logging.getLogger(__name__)
@@ -377,7 +377,7 @@ class HRAgentOrchestrator:
                 trace_id=trace_id,
                 fail_silently=False
             )
-        except (FirestoreStorageError, BigQueryAuditError) as db_err:
+        except (FirestoreStorageError, BigQueryAuditError, KMSEncryptionError) as db_err:
             error_msg = f"Database transaction write error ({type(db_err).__name__}): {db_err}"
             logger.error(error_msg, exc_info=True)
             return {
