@@ -1,0 +1,31 @@
+{
+  "name": "Altostrat HR & IT Agentic Assistant",
+  "description": "Enterprise autonomous HR policy consultation, WorkWeek HCM leave balances, and ServiceImmediately ITSM ticket management for Altostrat Singapore employees.",
+  "version": "1.0.0",
+  "icon_url": "https://fonts.gstatic.com/s/i/short-term/release/googlegsymbol/smart_toy/default/48px.svg",
+  "manifest_version": "1.0",
+  "contact_email": "people-ops@altostrat.com",
+  "api_spec": {
+    "type": "OPEN_API_3_0",
+    "url": "https://altostrat-hr-agent-dev.asia-southeast1.run.app/openapi.json"
+  },
+  "auth": {
+    "type": "OAUTH2_BEARER",
+    "authorization_server": "https://accounts.google.com/o/oauth2/v2/auth",
+    "scopes": ["https://www.googleapis.com/auth/userinfo.email"]
+  },
+  "capabilities": [
+    {
+      "name": "PolicyHandbookSearch",
+      "description": "Search Altostrat Singapore Employee Handbook Sections 6 through 35 for leave entitlements, insurance coverage, and compliance rules."
+    },
+    {
+      "name": "WorkWeekLeaveManagement",
+      "description": "Fetch real-time accrued and available vacation/sick balances and submit time-off requests."
+    },
+    {
+      "name": "ServiceImmediatelyTicketManagement",
+      "description": "List active IT support incidents and log new hardware/software assistance tickets."
+    }
+  ]
+}

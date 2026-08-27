@@ -1,0 +1,69 @@
+openapi: 3.0.3
+info:
+  title: Altostrat HR Agentic Solution API
+  description: Enterprise REST Gateway for Gemini Enterprise Front Door and Google Workspace Chat
+  version: 1.0.0
+servers:
+  - url: https://altostrat-hr-agent-dev.asia-southeast1.run.app
+    description: Dev Cloud Run Agent Runtime
+paths:
+  /gemini-enterprise/chat:
+    post:
+      summary: Google Workspace Chat & Gemini Enterprise Webhook Endpoint
+      description: Receives interactive chat messages from Gemini Enterprise / Google Chat and returns CardV2 widgets.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: object
+                  properties:
+                    text:
+                      type: string
+                      example: "How many vacation days do I have remaining?"
+                user:
+                  type: object
+                  properties:
+                    email:
+                      type: string
+                      example: "junhojang@altostrat.com"
+      responses:
+        "200":
+          description: Formatted Google Chat CardV2 response
+          content:
+            application/json:
+              schema:
+                type: object
+  /v1/policy/search:
+    post:
+      summary: Search Altostrat HR Policy Handbook (§6-§35)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                  example: "What is the bereavement leave policy?"
+      responses:
+        "200":
+          description: Grounded policy sections and citations
+  /v1/hcm/balances:
+    get:
+      summary: Retrieve WorkWeek HCM Leave Balances
+      parameters:
+        - name: employee_id
+          in: query
+          required: false
+          schema:
+            type: string
+            default: "EMP-558"
+      responses:
+        "200":
+          description: Accrued, used, and available vacation/sick balances
