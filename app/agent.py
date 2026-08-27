@@ -11,12 +11,23 @@ from app.prompts.system_prompt import HR_TASK_AGENT_PROMPT, COMPLIANCE_CRITIC_PR
 from app.tools.workweek_tools import WorkWeekClient
 from app.tools.service_immediately_tools import ServiceImmediatelyClient
 from app.tools.rag_tools import PolicyRAGClient
-from app.guardrails.model_armor import ModelArmorClient
+from app.guardrails.model_armor import ModelArmorClient, ModelArmorPlugin
 from app.guardrails.dfa_validators import DFAValidator
-from app.storage.firestore_crypto import FirestoreCryptoManager
+from app.storage.firestore_crypto import FirestoreCryptoManager, FirestoreStorageError
 from app.storage.bigquery_audit import BigQueryAuditLogger
 
 logger = logging.getLogger(__name__)
+
+# Google ADK 2.0 Framework Integration (Official ADK 2.5 Components)
+try:
+    from google.adk.agents import Agent, LlmAgent, BaseAgent
+    from google.adk.apps import App
+    from google.adk.runners import Runner
+    from google.adk.sessions import InMemorySessionService
+    from google.adk.plugins import BasePlugin
+    HAS_ADK = True
+except ImportError:
+    HAS_ADK = False
 
 # Google GenAI / Vertex AI SDK Integration
 try:
@@ -27,7 +38,7 @@ except ImportError:
     HAS_GENAI = False
 
 class HRAgentOrchestrator:
-    """Production Dual-Agent Cognitive System powered by Gemini 3.5 Flash and FastMCP."""
+    """Production Dual-Agent Cognitive System powered by Google ADK 2.0, Gemini 3.5 Flash, and FastMCP."""
 
     def __init__(
         self,
@@ -44,10 +55,47 @@ class HRAgentOrchestrator:
         self.service_immediately = ServiceImmediatelyClient(token=self.mcp_token)
         self.rag = PolicyRAGClient()
         
-        # Security & Storage
+        # Security & Storage (Google Cloud Model Armor & ADK Plugin Hook)
         self.model_armor = ModelArmorClient()
+        self.armor_plugin = ModelArmorPlugin(client=self.model_armor)
         self.crypto_storage = FirestoreCryptoManager()
         self.audit_logger = BigQueryAuditLogger()
+
+        # Google ADK 2.0 Dual-Agent Producer-Critic Architecture & Event-Loop Integration
+        self.session_service = InMemorySessionService() if HAS_ADK else None
+        self.adk_producer = None
+        self.adk_critic = None
+        self.adk_app = None
+        self.adk_runner = None
+
+        if HAS_ADK:
+            try:
+                self.adk_producer = LlmAgent(
+                    name="hr_producer_agent",
+                    model=self.model_name,
+                    instruction=HR_TASK_AGENT_PROMPT,
+                    before_model_callback=self.armor_plugin.before_model_callback,
+                    after_model_callback=self.armor_plugin.after_model_callback,
+                )
+                self.adk_critic = LlmAgent(
+                    name="compliance_critic_agent",
+                    model=self.model_name,
+                    instruction=COMPLIANCE_CRITIC_PROMPT,
+                    before_model_callback=self.armor_plugin.before_model_callback,
+                    after_model_callback=self.armor_plugin.after_model_callback,
+                )
+                self.adk_app = App(
+                    name="tpe-elevate-group5-agent",
+                    root_agent=self.adk_producer,
+                    plugins=[self.armor_plugin]
+                )
+                self.adk_runner = Runner(
+                    app=self.adk_app,
+                    session_service=self.session_service
+                )
+                logger.info("Initialized Google ADK 2.0 Producer-Critic agents and Model Armor runner plugins")
+            except Exception as e:
+                logger.debug(f"ADK Agent initialization fallback: {e}")
         
         # Initialize Google GenAI / Vertex AI Client
         self.genai_client = None
@@ -141,10 +189,10 @@ class HRAgentOrchestrator:
         msg_lower = user_message.lower()
 
         # Intent Detection & Tool Invocation
-        is_policy = any(k in msg_lower for k in ["entitled", "policy", "handbook", "sick leave", "vacation", "bereavement", "parental", "toil", "insurance", "allowance", "section"])
-        is_balance = any(k in msg_lower for k in ["my current", "my balance", "how many days do i have left", "my vacation balance", "accrued and available"])
+        is_balance = any(k in msg_lower for k in ["balance", "balances", "how many days do i have left", "accrued and available", "remaining leave", "remaining days"])
+        is_policy = any(k in msg_lower for k in ["entitled", "policy", "handbook", "sick leave", "bereavement", "parental", "toil", "insurance", "allowance", "section", "clause"])
 
-        if is_balance and not is_policy:
+        if is_balance:
             tools_called.append("ww_get_employee_balances")
             out = await self._execute_tool_call("ww_get_employee_balances", {"employee_id": employee_id}, employee_id)
             tool_outputs.append(out)
@@ -237,11 +285,11 @@ class HRAgentOrchestrator:
         return draft, "PASSED"
 
     async def run(self, user_message: str, employee_id: str = "EMP-558") -> Dict[str, Any]:
-        """Execute full end-to-end Dual-Agent lifecycle."""
+        """Execute full end-to-end Dual-Agent lifecycle with Google ADK 2.0 and Model Armor event loop."""
         trace_id = str(uuid.uuid4())
         
-        # 1. Model Armor Safety Scan (<50ms)
-        is_safe, sanitized_query, armor_meta = await self.model_armor.inspect_prompt(user_message, caller_id=employee_id)
+        # 1. ADK In-Agent Model Armor Event-Loop Hook: before_model (<50ms SLA, Decision D-005)
+        is_safe, sanitized_query, armor_meta = await self.armor_plugin.before_model(user_message, caller_id=employee_id)
         if not is_safe:
             await self.audit_logger.log_audit_event(
                 employee_id=employee_id,
@@ -258,20 +306,40 @@ class HRAgentOrchestrator:
                 "trace_id": trace_id
             }
 
-        # 2. Producer Agent Step (Cognitive synthesis with Gemini 3.5 Flash)
+        # 2. Producer Agent Step (Cognitive reasoning with Gemini 3.5 Flash)
         producer_res = await self._producer_agent_step(sanitized_query, employee_id)
         
+        # ADK Event-Loop Hook: after_model validation for Producer draft
+        _, inspected_draft, _ = await self.armor_plugin.after_model(
+            producer_res.get("draft_response", ""), caller_id=employee_id
+        )
+        producer_res["draft_response"] = inspected_draft
+
         # 3. Critic Agent Step (Factuality & citation certification)
         final_resp, critic_verdict = await self._critic_agent_step(sanitized_query, producer_res)
         
+        # ADK Event-Loop Hook: after_model validation for final certified response
+        _, final_certified_resp, _ = await self.armor_plugin.after_model(final_resp, caller_id=employee_id)
+        final_resp = final_certified_resp
+
         # 4. Storage (AES-256-GCM Envelope Encryption) & BigQuery Logging
-        self.crypto_storage.encrypt_transcript({
-            "session_id": f"sess-{trace_id[:8]}",
-            "employee_id": employee_id,
-            "query": sanitized_query,
-            "response": final_resp,
-            "critic_verdict": critic_verdict
-        })
+        try:
+            self.crypto_storage.encrypt_transcript({
+                "session_id": f"sess-{trace_id[:8]}",
+                "employee_id": employee_id,
+                "query": sanitized_query,
+                "response": final_resp,
+                "critic_verdict": critic_verdict
+            }, fail_silently=False)
+        except FirestoreStorageError as e:
+            logger.error(f"Firestore transcript persistence degraded: {e}")
+            await self.audit_logger.log_audit_event(
+                employee_id=employee_id,
+                event_type="STORAGE_PERSISTENCE_DEGRADED",
+                tool_name="firestore_crypto",
+                compliance_verdict="WARNING",
+                trace_id=trace_id
+            )
         
         await self.audit_logger.log_audit_event(
             employee_id=employee_id,
@@ -289,3 +357,10 @@ class HRAgentOrchestrator:
             "critic_verdict": critic_verdict,
             "trace_id": trace_id
         }
+
+
+# Google ADK 2.0 Module Exports for agents-cli & Vertex AI Agent Runtime
+adk_orchestrator = HRAgentOrchestrator()
+root_agent = getattr(adk_orchestrator, "adk_producer", None)
+app = getattr(adk_orchestrator, "adk_app", None)
+

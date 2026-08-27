@@ -19,6 +19,10 @@ try:
 except ImportError:
     HAS_GCP_STORAGE_SDK = False
 
+class FirestoreStorageError(RuntimeError):
+    """Raised when an encrypted envelope fails to persist to Google Cloud Firestore."""
+    pass
+
 class FirestoreCryptoManager:
     """Two-tier CMEK Envelope Encryption Manager using AES-256-GCM and Google Cloud KMS."""
 
@@ -83,7 +87,7 @@ class FirestoreCryptoManager:
         mask = hashlib.sha256(self.kms_key_name.encode()).digest()
         return bytes(b1 ^ b2 for b1, b2 in zip(wrapped_bytes, mask))
 
-    def encrypt_transcript(self, raw_transcript: Dict[str, Any]) -> Dict[str, Any]:
+    def encrypt_transcript(self, raw_transcript: Dict[str, Any], fail_silently: bool = True) -> Dict[str, Any]:
         """Cryptographically encrypt conversation transcript using real AES-256-GCM."""
         session_id = raw_transcript.get("session_id", "session-default")
         employee_id = raw_transcript.get("employee_id", "EMP-558")
@@ -123,8 +127,16 @@ class FirestoreCryptoManager:
             try:
                 doc_ref = self.firestore_client.collection("interaction_records").document(session_id)
                 doc_ref.set(envelope)
+                envelope["storage_status"] = "PERSISTED"
             except Exception as e:
-                logger.warning(f"Firestore envelope write error: {e}")
+                error_msg = f"Failed to persist encrypted envelope to Firestore for session '{session_id}' (employee '{employee_id}'): {e}"
+                logger.error(error_msg, exc_info=True)
+                envelope["storage_status"] = "PERSISTENCE_FAILED"
+                envelope["storage_error"] = str(e)
+                if not fail_silently:
+                    raise FirestoreStorageError(error_msg) from e
+        else:
+            envelope["storage_status"] = "OFFLINE_ENCRYPTED_ONLY"
 
         return envelope
 

@@ -1,7 +1,9 @@
 """4-Tier Golden Evaluation Benchmark Harness for Google ADK Multi-Agent System."""
-import asyncio, json, os, sys, time
-from typing import Dict, Any, List
-from datetime import datetime
+import asyncio
+import json
+import os
+import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.agent import HRAgentOrchestrator
@@ -141,12 +143,15 @@ async def run_benchmark():
             t = data["total"]
             score_pct = (p / t) * 100
             rep_lines.append(f"| **{m_id}** | {m_id} Benchmark Target | {p}/{t} | **{score_pct:.1f}%** | `PASSED` |")
-    rep_lines.append("")
     rep_lines.append("## 2. Test Fixture Execution Log")
     for r in results:
         v = "PASS" if r["passed"] else "FAIL"
-        rep_lines.append(f"* **[{v}] {r["eval_id"]} ({r["tier"]})**: `{r["prompt"]}`")
-        rep_lines.append(f"  * *Output*: {r["response"]}")
+        eval_id = r['eval_id']
+        tier = r['tier']
+        prompt = r['prompt']
+        resp = r['response']
+        rep_lines.append(f"* **[{v}] {eval_id} ({tier})**: `{prompt}`")
+        rep_lines.append(f"  * *Output*: {resp}")
 
     report_path = os.path.join(os.path.dirname(__file__), "evaluation_report.md")
     with open(report_path, "w") as f:

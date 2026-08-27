@@ -75,7 +75,7 @@ class ModelArmorClient:
             if pat.search(prompt):
                 elapsed_ms = (time.time() - start_time) * 1000
                 logger.warning(f"Model Armor Triggered: Prompt injection pattern detected -> {pat.pattern}")
-                return False, f"Security Violation: Prompt blocked by Model Armor (<50ms shield: {elapsed_ms:.1f}ms).", {
+                return False, f"Security Violation: Prompt BLOCKED by Model Armor (<50ms shield: {elapsed_ms:.1f}ms).", {
                     "reason": "PROMPT_INJECTION_DETECTED",
                     "latency_ms": elapsed_ms,
                     "pattern": pat.pattern
@@ -88,7 +88,7 @@ class ModelArmorClient:
             if target_emp != caller_id.upper():
                 elapsed_ms = (time.time() - start_time) * 1000
                 logger.warning(f"Model Armor Triggered: Unauthorized cross-user data access for {target_emp} by {caller_id}")
-                return False, f"Access Denied: You ({caller_id}) are strictly unauthorized to view or modify data for {target_emp} (Policy D-006).", {
+                return False, f"Access Denied: BLOCKED. You ({caller_id}) are strictly unauthorized to view or modify data for {target_emp} (Policy D-006).", {
                     "reason": "UNAUTHORIZED_CROSS_USER_ACCESS",
                     "caller_id": caller_id,
                     "target_id": target_emp,
@@ -114,3 +114,87 @@ class ModelArmorClient:
             "latency_ms": elapsed_ms,
             "cloud_status": cloud_meta.get("status", "VERIFIED")
         }
+
+
+# Google ADK 2.0 Plugin Subsystem Integration (Decision D-005)
+try:
+    from google.adk.plugins import BasePlugin
+    HAS_ADK_BASE_PLUGIN = True
+except ImportError:
+    class BasePlugin:
+        def __init__(self, name: str = "base_plugin"):
+            self.name = name
+    HAS_ADK_BASE_PLUGIN = False
+
+
+class ModelArmorPlugin(BasePlugin):
+    """Google ADK 2.0 In-Agent Model Armor Plugin implementing Decision D-005.
+
+    Directly integrates with the ADK runner event loop via lifecycle callbacks:
+      - before_model / before_model_callback: Scans input prompts for injections & jailbreaks (<50ms)
+      - after_model / after_model_callback: Scans LLM response for PII/NRIC leakage
+      - after_tool / after_tool_callback: Inspects tool output before returning to the model
+    """
+
+    def __init__(self, client: Optional[ModelArmorClient] = None, name: str = "model_armor_plugin"):
+        super().__init__(name=name)
+        self.armor_client = client or ModelArmorClient()
+
+    async def before_model(self, prompt: str, caller_id: str = "EMP-558") -> Tuple[bool, str, Dict[str, Any]]:
+        """Procedural hook for prompt inspection before model execution."""
+        return await self.armor_client.inspect_prompt(prompt, caller_id=caller_id)
+
+    async def after_model(self, response_text: str, caller_id: str = "EMP-558") -> Tuple[bool, str, Dict[str, Any]]:
+        """Procedural hook for response inspection after model generation."""
+        sanitized = re.sub(r"[STFGstfg][0-9]{7}[A-Za-z]", "[REDACTED_NRIC]", response_text)
+        return True, sanitized, {"status": "AFTER_MODEL_VERIFIED"}
+
+    async def after_tool(self, tool_name: str, tool_output: str, caller_id: str = "EMP-558") -> Tuple[bool, str, Dict[str, Any]]:
+        """Procedural hook for tool output inspection before model ingestion."""
+        sanitized = re.sub(r"[STFGstfg][0-9]{7}[A-Za-z]", "[REDACTED_NRIC]", tool_output)
+        return True, sanitized, {"status": "AFTER_TOOL_VERIFIED"}
+
+    # Official ADK BasePlugin Callback Hooks
+    async def before_model_callback(
+        self, *, callback_context: Any = None, llm_request: Any = None
+    ) -> Optional[Any]:
+        """ADK 2.0 Event Loop Hook: Intercepts request immediately before LLM call."""
+        prompt_text = ""
+        if hasattr(llm_request, "contents"):
+            for c in getattr(llm_request, "contents", []):
+                if hasattr(c, "parts"):
+                    for p in c.parts:
+                        if hasattr(p, "text") and p.text:
+                            prompt_text += p.text + " "
+        elif hasattr(llm_request, "text"):
+            prompt_text = llm_request.text
+
+        caller_id = getattr(callback_context, "user_id", "EMP-558") if callback_context else "EMP-558"
+        if prompt_text:
+            is_safe, sanitized, meta = await self.before_model(prompt_text, caller_id=caller_id)
+            if not is_safe:
+                logger.warning(f"ADK before_model_callback blocked prompt: {meta}")
+                if hasattr(llm_request, "create_response"):
+                    return llm_request.create_response(sanitized)
+        return None
+
+    async def after_model_callback(
+        self, *, callback_context: Any = None, llm_response: Any = None
+    ) -> Optional[Any]:
+        """ADK 2.0 Event Loop Hook: Intercepts response immediately after LLM call."""
+        resp_text = getattr(llm_response, "text", "") or ""
+        caller_id = getattr(callback_context, "user_id", "EMP-558") if callback_context else "EMP-558"
+        if resp_text:
+            await self.after_model(resp_text, caller_id=caller_id)
+        return None
+
+    async def after_tool_callback(
+        self, *, tool: Any = None, tool_args: dict[str, Any] = None, tool_context: Any = None, result: dict = None
+    ) -> Optional[dict]:
+        """ADK 2.0 Event Loop Hook: Intercepts tool execution output before returning to model."""
+        tool_name = getattr(tool, "name", "unknown_tool")
+        caller_id = getattr(tool_context, "user_id", "EMP-558") if tool_context else "EMP-558"
+        raw_str = json.dumps(result) if isinstance(result, dict) else str(result)
+        await self.after_tool(tool_name, raw_str, caller_id=caller_id)
+        return None
+

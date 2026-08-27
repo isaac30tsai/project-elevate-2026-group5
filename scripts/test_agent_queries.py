@@ -15,9 +15,8 @@ import subprocess
 import sys
 import time
 import urllib.error
-import urllib.parse
 import urllib.request
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 DEFAULT_CLOUDRUN_URL = "https://tpe-elevate-group5-agent-lydisbk46a-as.a.run.app"
 DEFAULT_LOCAL_URL = "http://localhost:8080"

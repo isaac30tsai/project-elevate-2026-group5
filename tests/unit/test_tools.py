@@ -1,5 +1,5 @@
+"""Unit tests for WorkWeek, ServiceImmediately, and Policy RAG tools."""
 import pytest
-import asyncio
 from app.tools.workweek_tools import WorkWeekClient
 from app.tools.service_immediately_tools import ServiceImmediatelyClient
 from app.tools.rag_tools import PolicyRAGClient
