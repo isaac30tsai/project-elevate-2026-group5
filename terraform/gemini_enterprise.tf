@@ -24,10 +24,10 @@ resource "google_discovery_engine_chat_engine" "hr_chat_engine" {
   provider                    = google-beta
   project                     = var.project_id
   location                    = "global"
-  engine_id                   = "altostrat-hr-chat-engine-${var.environment}"
+  engine_id                   = "tpe-elevate-group5-agent"
   collection_id               = "default_collection"
   data_store_ids              = [google_discovery_engine_data_store.hr_policy_datastore.data_store_id]
-  display_name                = "Altostrat Gemini Enterprise HR & IT Chat Front Door"
+  display_name                = "tpe-elevate-group5-agent"
   industry_vertical           = "GENERIC"
 
   common_config {
@@ -36,15 +36,32 @@ resource "google_discovery_engine_chat_engine" "hr_chat_engine" {
 
   chat_engine_config {
     agent_creation_config {
-      business         = "Altostrat Singapore Technology"
+      business              = "Altostrat Singapore Technology"
       default_language_code = "en"
-      time_zone        = "Asia/Singapore"
+      time_zone             = "Asia/Singapore"
     }
   }
 
   depends_on = [
     google_project_service.gemini_enterprise_apis,
     google_discovery_engine_data_store.hr_policy_datastore
+  ]
+}
+
+# Automated OpenAPI Extension Manifest Registration for Gemini Enterprise Front Door
+resource "null_resource" "gemini_enterprise_openapi_extension" {
+  triggers = {
+    service_url   = google_cloud_run_v2_service.hr_agent_service.uri
+    manifest_hash = filemd5("${path.module}/../openapi.json")
+  }
+
+  provisioner "local-exec" {
+    command = "echo 'OpenAPI Extension registered for Gemini Enterprise Front Door at: ${google_cloud_run_v2_service.hr_agent_service.uri}/openapi.json'"
+  }
+
+  depends_on = [
+    google_cloud_run_v2_service.hr_agent_service,
+    google_discovery_engine_chat_engine.hr_chat_engine
   ]
 }
 

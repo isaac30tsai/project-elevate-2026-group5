@@ -1,0 +1,160 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "tpe-elevate-group5-agent API",
+    "description": "Enterprise REST Gateway for Gemini Enterprise Front Door and Google Workspace Chat",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://tpe-elevate-group5-agent-lydisbk46a-as.a.run.app",
+      "description": "Live Cloud Run Agent Runtime"
+    }
+  ],
+  "paths": {
+    "/gemini-enterprise/chat": {
+      "post": {
+        "operationId": "geminiEnterpriseChat",
+        "summary": "Google Workspace Chat & Gemini Enterprise Webhook Endpoint",
+        "description": "Receives interactive chat messages from Gemini Enterprise / Google Chat and returns CardV2 widgets.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "object",
+                    "properties": {
+                      "text": {
+                        "type": "string",
+                        "example": "How many vacation days do I have remaining?"
+                      }
+                    }
+                  },
+                  "user": {
+                    "type": "object",
+                    "properties": {
+                      "email": {
+                        "type": "string",
+                        "example": "junhojang@altostrat.com"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Formatted Google Chat CardV2 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "cardsV2": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/policy/search": {
+      "post": {
+        "operationId": "searchPolicyHandbook",
+        "summary": "Search Altostrat HR Policy Handbook (Sections 6-35)",
+        "description": "Search Singapore employment policies with section grounding.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "query"
+                ],
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "example": "What is the bereavement leave policy?"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Grounded policy sections and citations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/hcm/balances": {
+      "get": {
+        "operationId": "getHcmBalances",
+        "summary": "Retrieve WorkWeek HCM Leave Balances",
+        "description": "Retrieve live available, accrued, and used leave balances.",
+        "parameters": [
+          {
+            "name": "employee_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "EMP-558"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accrued, used, and available vacation/sick balances",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

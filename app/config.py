@@ -14,7 +14,7 @@ class Settings:
     environment: str = os.getenv("ENVIRONMENT", "dev")
     
     # Model Configurations
-    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-3.7-flash")
+    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
     temperature: float = float(os.getenv("TEMPERATURE", "0.2"))
     
     # SaaS FastMCP Endpoints (Externalized)

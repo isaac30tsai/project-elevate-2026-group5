@@ -15,7 +15,7 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ ./app/
-COPY gemini-enterprise-extension.json openapi.yaml pyproject.toml README.md uv.lock ./
+COPY gemini-enterprise-extension.json openapi.yaml openapi.json pyproject.toml README.md uv.lock ./
 
 EXPOSE 8080
 

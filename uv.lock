@@ -1,23 +1,65 @@
 version = 1
 revision = 1
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 
 [[package]]
 name = "tpe-elevate-group5-agent"
-version = "1.0.0"
+version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "cryptography" },
     { name = "fastapi" },
-    { name = "fastmcp" },
-    { name = "google-adk" },
-    { name = "google-cloud-bigquery" },
+    { name = "uvicorn" },
+    { name = "pydantic" },
+    { name = "httpx" },
+    { name = "google-genai" },
+    { name = "cryptography" },
     { name = "google-cloud-discoveryengine" },
     { name = "google-cloud-firestore" },
     { name = "google-cloud-kms" },
-    { name = "google-genai" },
-    { name = "httpx" },
-    { name = "pydantic" },
-    { name = "pyyaml" },
-    { name = "uvicorn" },
+    { name = "google-cloud-bigquery" },
+    { name = "google-auth" },
 ]
+
+[[package]]
+name = "fastapi"
+version = "0.115.0"
+
+[[package]]
+name = "uvicorn"
+version = "0.30.0"
+
+[[package]]
+name = "pydantic"
+version = "2.9.0"
+
+[[package]]
+name = "httpx"
+version = "0.27.0"
+
+[[package]]
+name = "cryptography"
+version = "43.0.0"
+
+[[package]]
+name = "google-genai"
+version = "0.1.1"
+
+[[package]]
+name = "google-cloud-discoveryengine"
+version = "0.13.0"
+
+[[package]]
+name = "google-cloud-firestore"
+version = "2.19.0"
+
+[[package]]
+name = "google-cloud-kms"
+version = "2.22.0"
+
+[[package]]
+name = "google-cloud-bigquery"
+version = "3.25.0"
+
+[[package]]
+name = "google-auth"
+version = "2.35.0"
