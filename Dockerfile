@@ -11,11 +11,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml README.md ./
-RUN pip install --no-cache-dir .
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ ./app/
-COPY gemini-enterprise-extension.json openapi.yaml ./
+COPY gemini-enterprise-extension.json openapi.yaml pyproject.toml README.md uv.lock ./
 
 EXPOSE 8080
 

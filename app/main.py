@@ -77,7 +77,6 @@ if HAS_FASTAPI:
         return res
 
 else:
-    # Minimal ASGI / WSGI fallback object if FastAPI package is not yet imported
     class AppFallback:
         def __call__(self, scope, receive, send):
             pass
@@ -105,8 +104,7 @@ async def main():
     employee_id = GeminiEnterpriseAdapter.extract_user_identity(sample_headers, sample_chat_payload)
     res = await agent.run(sample_chat_payload["message"]["text"], employee_id=employee_id)
     card_out = GeminiEnterpriseAdapter.build_chat_card_response(sample_chat_payload["message"]["text"], res)
-    print("
-[Gemini Enterprise CardV2 Output]:")
+    print("[Gemini Enterprise CardV2 Output]:")
     print(json.dumps(card_out, indent=2))
 
 if __name__ == "__main__":
