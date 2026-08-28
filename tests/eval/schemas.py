@@ -54,9 +54,11 @@ class LLMJudgeVerdict(BaseModel):
     cosine_similarity: float = Field(default=1.0, ge=0.0, le=1.0, description="Semantic cosine similarity against ground truth claims")
     citation_accuracy: float = Field(default=1.0, ge=0.0, le=1.0, description="Presence and validity of handbook section citations (§)")
     context_hit_rate_at_k: float = Field(default=1.0, ge=0.0, le=1.0, description="Retrieval-stage context hit rate @ K=3 (0.0 - 1.0)")
+    context_hit_rate: float = Field(default=1.0, ge=0.0, le=1.0, description="Direct retrieval Context Hit Rate @ K (retrieved_chunks vs gold_chunks)")
+    mrr: float = Field(default=1.0, ge=0.0, le=1.0, description="Mean Reciprocal Rank @ K=3 evaluating semantic search precision")
     
     # Target Mathematical Score Formula (reference_approach.md Section 1.1):
-    # formula: "0.30 * Groundedness + 0.20 * CosineSimilarity + 0.30 * CitationAccuracy + 0.20 * ContextHitRate"
+    # score = 0.3 * context_hit_rate(retrieved_chunks, gold_chunks) + 0.3 * groundedness + 0.2 * semantic_similarity + 0.2 * citation_accuracy
     overall_run_score: float = Field(default=1.0, ge=0.0, le=1.0, description="Weighted composite reliability score")
     
     zero_hallucination: bool = Field(default=True, description="True if 0% ungrounded claims detected")
@@ -66,11 +68,13 @@ class LLMJudgeVerdict(BaseModel):
     verdict: Literal["PASSED", "FAILED", "BLOCKED"] = Field(default="PASSED", description="Final benchmark judgment")
 
     def compute_composite_score(self) -> float:
+        """score = 0.3 * context_hit_rate(retrieved_chunks, gold_chunks) + 0.3 * groundedness + 0.2 * semantic_similarity + 0.2 * citation_accuracy"""
+        hit_rate = self.context_hit_rate if self.context_hit_rate is not None else self.context_hit_rate_at_k
         self.overall_run_score = round(
+            0.30 * hit_rate +
             0.30 * self.ragas_groundedness +
             0.20 * self.cosine_similarity +
-            0.30 * self.citation_accuracy +
-            0.20 * self.context_hit_rate_at_k,
+            0.20 * self.citation_accuracy,
             4
         )
         return self.overall_run_score

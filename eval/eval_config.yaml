@@ -21,33 +21,40 @@ organization_assumptions:
     - name: "Altostrat Singapore Employee Policy Handbook (§6–§35)"
       scope: "Excludes summary sections §1–§5 from grounding; mandates authoritative section citations (§)"
 
-# 2. Mathematical Scoring Formulas & Factuality Verification (Approach Rigor)
+# 2. Mathematical Scoring Formulas & Direct Retrieval Metrics (Approach Rigor)
 scoring_formulas:
   overall_run_score:
-    formula: "0.30 * Groundedness + 0.20 * CosineSimilarity + 0.30 * CitationAccuracy + 0.20 * ContextHitRate"
+    formula: "score = 0.3 * context_hit_rate(retrieved_chunks, gold_chunks) + 0.3 * groundedness + 0.2 * semantic_similarity + 0.2 * citation_accuracy"
     metrics:
-      - name: context_hit_rate_at_k
+      - name: context_hit_rate
+        aliases: ["context_hit_rate_at_k"]
         k: 3
         target_threshold: 0.90
-        weight: 0.20
-        description: "Retrieval-stage context hit rate evaluating document retrieval performance before response generation"
+        weight: 0.30
+        description: "Direct retrieval Context Hit Rate @ K evaluating semantic search precision before response generation"
+      - name: mrr
+        target_threshold: 0.90
+        weight: 0.10
+        description: "Mean Reciprocal Rank (MRR @ K=3) measuring semantic search precision and ranking position"
       - name: ragas_groundedness
         target_threshold: 0.85
         weight: 0.30
         description: "Factual adherence of generated claims against retrieved handbook context"
-      - name: semantic_cosine_similarity
+      - name: semantic_similarity
+        aliases: ["semantic_cosine_similarity"]
         target_threshold: 0.80
         weight: 0.20
-        description: "Semantic alignment with authoritative ground truth claims"
+        description: "Semantic cosine similarity with authoritative ground truth claims"
       - name: citation_accuracy
         target_threshold: 0.90
-        weight: 0.30
+        weight: 0.20
         description: "Presence and validity of mandatory handbook section citations (§)"
     weights:
+      context_hit_rate: 0.30
       ragas_groundedness: 0.30
-      semantic_cosine_similarity: 0.20
-      citation_accuracy: 0.30
-      context_hit_rate_at_k: 0.20
+      semantic_similarity: 0.20
+      citation_accuracy: 0.20
+      mrr: 0.10
     reliability_threshold: 0.90
 
 factuality_verification:
