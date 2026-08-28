@@ -96,8 +96,8 @@ ALTOSTRAT_HANDBOOK_CORPUS = [
     },
     {
         "section": "§28.2",
-        "title": "IT Equipment & Asset Care Responsibilities",
-        "content": "Company-provided laptops, monitors, and peripherals remain Altostrat property. Hardware malfunctions, keyboard damage, or physical defects must be reported immediately to IT via ServiceImmediately for diagnostic assessment and replacement."
+        "title": "IT Equipment, Asset Care & Home Office Procurement (UC-2.1)",
+        "content": "Company-provided laptops, monitors, and peripherals remain Altostrat property. Eligible hybrid and remote employees may order standard home office equipment, including external home office monitors (up to 27-inch) and ergonomic peripherals, via ServiceImmediately IT Equipment Procurement under their remote work allowance. Hardware malfunctions, keyboard damage, or physical defects must be reported immediately to IT via ServiceImmediately for diagnostic assessment and replacement."
     },
     {
         "section": "§35.0",

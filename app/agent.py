@@ -286,9 +286,19 @@ class HRAgentOrchestrator:
             else:
                 tools_called.append("search_policy_handbook")
                 out = await self._execute_tool_call("search_policy_handbook", {"query": "London HQ relocation allowance building badging facilities"}, employee_id)
-                tool_outputs.append(out)
+        # 6. Equipment Procurement Policy Inquiry (UC-2.1)
+        elif "order" in msg_lower and any(k in msg_lower for k in ["monitor", "hardware", "laptop", "equipment"]) and not any(k in msg_lower for k in ["ticket", "submit", "log a ticket", "procurement ticket"]):
+            tools_called.append("search_policy_handbook")
+            out = await self._execute_tool_call("search_policy_handbook", {"query": "home office monitor equipment procurement remote allowance policy"}, employee_id)
+            tool_outputs.append(out)
 
-        # 6. Live WorkWeek HCM Balance Queries (Vacation, Sick, Annual Leave Balances)
+        # 7. Remote Eligibility / Profile Verification before Procurement (UC-2.1)
+        elif any(k in msg_lower for k in ["remote work eligibility", "remote eligibility", "office address in workweek", "verify my remote"]):
+            tools_called.append("ww_get_personal_info")
+            out = await self._execute_tool_call("ww_get_personal_info", {}, employee_id)
+            tool_outputs.append(out)
+
+        # 8. Live WorkWeek HCM Balance Queries (Vacation, Sick, Annual Leave Balances)
         # Direct independent routing: Live balance queries NEVER get trapped or routed to static policy RAG!
         elif any(k in msg_lower for k in [
             "balance", "balances", "how many days do i have left", "days left",
