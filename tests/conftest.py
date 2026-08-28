@@ -23,10 +23,13 @@ def mock_gcp_clients_for_tests(monkeypatch):
 
     try:
         from google import genai
-        mock_genai = MagicMock()
-        mock_genai.models.generate_content.return_value = MagicMock(
+        from unittest.mock import AsyncMock
+        mock_genai_instance = MagicMock()
+        mock_res = MagicMock(
             text="APPROVED: Grounded response verified against Altostrat Singapore Policy (§8.3 / §12.1 / §14.2). Vacation balances and policy citations certified."
         )
-        monkeypatch.setattr(genai, "Client", lambda *args, **kwargs: mock_genai)
+        mock_genai_instance.models.generate_content.return_value = mock_res
+        mock_genai_instance.aio.models.generate_content = AsyncMock(return_value=mock_res)
+        monkeypatch.setattr(genai, "Client", lambda *args, **kwargs: mock_genai_instance)
     except ImportError:
         pass

@@ -29,7 +29,7 @@ class DFAValidator:
             return False, "Days requested must be greater than 0."
 
         if days_requested > available_balance:
-            return False, f"Insufficient leave balance. Requested {days_requested} days, but only {available_balance} days available."
+            return False, f"Insufficient leave balance. Requested {days_requested} days, but your current available {leave_type} balance is {available_balance} days. Please adjust your request to not exceed {available_balance} days or contact People Operations."
 
         try:
             start_dt = datetime.strptime(start_date_str, "%Y-%m-%d").date()

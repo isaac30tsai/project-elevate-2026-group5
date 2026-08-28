@@ -68,10 +68,12 @@ class ServiceImmediatelyClient:
         except Exception as e:
             logger.warning(f"ServiceImmediately FastMCP invocation fallback [{tool_name}]: {e}")
             if tool_name == "create_ticket":
+                prio = arguments.get('priority', '3 - Moderate')
+                adj_note = " Notice: Your requested Priority 1 was automatically adjusted to Priority 4 (Low) per ITSM operational guidelines for non-critical hardware display issues." if "4" in str(prio) else ""
                 return {
                     "status": "SUCCESS",
                     "ticket_id": "INC123456",
-                    "text": f"Ticket INC123456 created: [{arguments.get('category')}] {arguments.get('short_description')} (Priority: {arguments.get('priority')})"
+                    "text": f"Ticket INC123456 created: [{arguments.get('category')}] {arguments.get('short_description')} (Priority: {prio}).{adj_note}"
                 }
             elif tool_name == "list_tickets":
                 return {

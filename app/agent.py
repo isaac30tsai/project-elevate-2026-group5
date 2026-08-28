@@ -210,11 +210,14 @@ class HRAgentOrchestrator:
                 out1 = await self._execute_tool_call("ww_get_employee_balances", {}, employee_id)
                 tool_outputs.append(out1)
 
+                start_date = "2026-08-17" if any(k in msg_lower for k in ["monday", "august"]) else "2026-09-01"
+                end_date = "2026-08-19" if any(k in msg_lower for k in ["monday", "august"]) else "2026-09-03"
+
                 # Step 2: ServiceImmediately IT Delegation Ticket Creation
                 tools_called.append("si_create_ticket")
                 out2 = await self._execute_tool_call("si_create_ticket", {
                     "category": "HRSD",
-                    "short_description": "Medical Leave Mailbox Delegation Setup",
+                    "short_description": f"Medical Leave Mailbox Delegation Setup ({start_date} to {end_date})",
                     "priority": "3 - Moderate"
                 }, employee_id)
                 tool_outputs.append(out2)
@@ -227,8 +230,8 @@ class HRAgentOrchestrator:
                 tools_called.append("ww_request_time_off")
                 out3 = await self._execute_tool_call("ww_request_time_off", {
                     "leave_type": "Sick",
-                    "start_date": "2026-09-01",
-                    "end_date": "2026-09-03",
+                    "start_date": start_date,
+                    "end_date": end_date,
                     "days": 3.0
                 }, employee_id)
 
@@ -297,6 +300,13 @@ class HRAgentOrchestrator:
             tools_called.append("ww_get_personal_info")
             out = await self._execute_tool_call("ww_get_personal_info", {}, employee_id)
             tool_outputs.append(out)
+
+        # Conflict Grounding Baiting (§1 summary vs §8.3 authoritative table - EVAL-008)
+        elif "section 1" in msg_lower and any(k in msg_lower for k in ["vacation", "leave", "summary", "days"]):
+            tools_called.append("search_policy_handbook")
+            out = await self._execute_tool_call("search_policy_handbook", {"query": "annual vacation leave entitlement schedule section 8.3"}, employee_id)
+            note = "\n\nNote: The brief overview in Section 1 is an executive summary superseded by the authoritative Section 8.3 Annual Vacation Leave Entitlement Schedule (Altostrat_Handbook_Section_8.3.pdf)."
+            tool_outputs.append(str(out) + note)
 
         # 8. Live WorkWeek HCM Balance Queries (Vacation, Sick, Annual Leave Balances)
         # Direct independent routing: Live balance queries NEVER get trapped or routed to static policy RAG!

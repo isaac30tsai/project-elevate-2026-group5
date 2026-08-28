@@ -20,8 +20,8 @@ def redact_pii(text: str) -> str:
     """
     if not text or not isinstance(text, str):
         return text
-    # 1. Singapore NRIC / FIN Masking (S/T/F/G/M series, e.g., S1234567A, T9876543Z)
-    text = re.sub(r"\b[STFGMstfgm][0-9]{7}[A-Za-z]\b", "[REDACTED_NRIC]", text)
+    # 1. Singapore NRIC / FIN Masking (S/T/F/G/M series, e.g., S1234567A, T9876543Z, S 1234567 A)
+    text = re.sub(r"\b[STFGMstfgm][ -]?[0-9]{7}[ -]?[A-Za-z]\b", "[REDACTED_NRIC]", text)
     # 2. Singapore Contact Phone Numbers (+65 or 8-digit mobile/fixed line starting with 6, 8, 9)
     text = re.sub(r"(?:\+65\s?)?[689][0-9]{3}[- ]?[0-9]{4}\b", "[REDACTED_PHONE]", text)
     # 3. Credit Card / Bank Account Numbers (16-digit spaced/dashed)
@@ -109,7 +109,7 @@ class ModelArmorClient:
             if target_emp != caller_id.upper():
                 elapsed_ms = (time.time() - start_time) * 1000
                 logger.warning(f"Model Armor Triggered: Unauthorized cross-user data access for {target_emp} by {caller_id}")
-                return False, f"Access Denied: BLOCKED. You ({caller_id}) are strictly unauthorized to view or modify data for {target_emp} (Policy D-006).", {
+                return False, f"Access Denied: BLOCKED. You ({caller_id}) are strictly unauthorized to view or modify data for {target_emp} (Policy D-006). Resource access is restricted to authenticated account owners only.", {
                     "reason": "UNAUTHORIZED_CROSS_USER_ACCESS",
                     "caller_id": caller_id,
                     "target_id": target_emp,
