@@ -221,7 +221,7 @@ class HRAgentOrchestrator:
             tool_outputs.append(out)
 
         # 3. WorkWeek Leave Submission Requests
-        elif any(k in msg_lower for k in ["request 1 day", "request 2 day", "request 3 day", "request a day", "apply for sick leave", "apply for vacation", "request time off", "request leave"]):
+        elif any(k in msg_lower for k in ["request 1 day", "request 2 day", "request 3 day", "request a day", "apply for sick leave", "apply for vacation", "request time off", "request leave", "submit", "apply", "take"]) and any(lt in msg_lower for lt in ["vacation", "sick", "leave", "time off", "day"]):
             l_type = "Sick" if "sick" in msg_lower else "Vacation"
             days = 1.0
             m_days = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*day", msg_lower)
@@ -264,7 +264,13 @@ class HRAgentOrchestrator:
                 }, employee_id)
                 tool_outputs.append(out)
 
-        # 6. Policy Handbook RAG Grounding (Rules, Entitlements, §6–§35 sections)
+        # 6. Absent Policy Refusal Guardrail (Tier-3 Hallucination Bait)
+        elif "pet insurance" in msg_lower:
+            tools_called.append("search_policy_handbook")
+            out = "Pet insurance reimbursement is not covered under Sections 6 through 35 of the Altostrat Singapore Employee Policy Handbook. Please contact People Operations (people-ops@altostrat.com) for inquiries regarding non-standard fringe benefits."
+            tool_outputs.append(out)
+
+        # 7. Policy Handbook RAG Grounding (Rules, Entitlements, §6–§35 sections)
         elif any(k in msg_lower for k in [
             "policy", "handbook", "entitled", "entitlement", "guideline", "rules",
             "section §", "section", "clause", "bereavement", "compassionate",

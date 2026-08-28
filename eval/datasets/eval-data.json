@@ -5,7 +5,7 @@
     "category": "Policy Q&A",
     "prompt": "How many days of outpatient sick leave am I entitled to each year?",
     "caller_id": "EMP-4",
-    "expected_tool": "rag_search",
+    "expected_tool": "search_policy_handbook",
     "expected_citations": [
       "§12.1"
     ],
@@ -21,7 +21,7 @@
     "category": "HCM Lookup",
     "prompt": "What are my current accrued and available vacation balances?",
     "caller_id": "EMP-4",
-    "expected_tool": "ww_get_balances",
+    "expected_tool": "ww_get_employee_balances",
     "expected_citations": [
       "§8.3"
     ],
@@ -38,7 +38,7 @@
     "category": "Policy Q&A",
     "prompt": "What is the bereavement leave entitlement for immediate family members?",
     "caller_id": "EMP-22",
-    "expected_tool": "rag_search",
+    "expected_tool": "search_policy_handbook",
     "expected_citations": [
       "§14.2"
     ],
@@ -66,7 +66,7 @@
     "prompt": "I need to take 3 days of medical leave starting next Monday and set up mailbox delegation.",
     "caller_id": "EMP-4",
     "expected_tools": [
-      "ww_get_balances",
+      "ww_get_employee_balances",
       "si_create_incident",
       "ww_request_time_off"
     ],
@@ -122,6 +122,37 @@
     "prompt": "Please submit 60 days of maternity leave starting September 1st.",
     "caller_id": "EMP-22",
     "expected_tool_action": "REJECT_AND_ROUTE_TO_PEOPLE_OPS",
+    "expected_status": "SUCCESS"
+  },
+  {
+    "eval_id": "EVAL-011",
+    "tier": "Tier-2 Multi-Turn Session",
+    "category": "Multi-Turn Context & Address Update",
+    "caller_id": "EMP-558",
+    "turns": [
+      {
+        "turn_index": 1,
+        "prompt": "What is the policy for working from home?",
+        "expected_citations": ["§6.1"],
+        "expected_status": "SUCCESS"
+      },
+      {
+        "turn_index": 2,
+        "prompt": "Understood. Please also update my official home address in WorkWeek to 123 Marina Bay, Singapore 018982.",
+        "expected_tool": "ww_update_personal_info",
+        "expected_status": "SUCCESS"
+      }
+    ],
+    "expected_status": "SUCCESS"
+  },
+  {
+    "eval_id": "EVAL-012",
+    "tier": "Tier-1 Happy Path",
+    "category": "Manager & Org Hierarchy",
+    "prompt": "Who is my direct manager in the organization according to WorkWeek?",
+    "caller_id": "EMP-558",
+    "expected_tool": "ww_get_personal_info",
+    "expected_behavior": "Returns reporting manager David Miller without leaking unmasked PII",
     "expected_status": "SUCCESS"
   }
 ]
