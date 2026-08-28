@@ -4,7 +4,12 @@ set -euo pipefail
 PROJECT_ID="${GCP_PROJECT:-junho-elevate}"
 REGION="${GCP_REGION:-asia-southeast1}"
 SERVICE_NAME="tpe-elevate-group5-agent"
-MCP_TOKEN="${MCP_AUTH_TOKEN:-mcp_awThuI7rWgonvsSO4WInzJ9IgB-yAT4kjALp200kFDA}"
+MCP_TOKEN="${MCP_AUTH_TOKEN:-$(gcloud secrets versions access latest --secret=altostrat-mcp-token --project="${PROJECT_ID}" 2>/dev/null || echo '')}"
+
+if [[ -z "${MCP_TOKEN}" ]]; then
+  echo "WARNING: MCP_AUTH_TOKEN is not set and could not be retrieved from Secret Manager." >&2
+  echo "Please export MCP_AUTH_TOKEN='<token>' before running deploy." >&2
+fi
 
 echo "================================================================================"
 echo "  Deploying Altostrat HR & IT Agentic Solution to Argolis Project: ${PROJECT_ID}"

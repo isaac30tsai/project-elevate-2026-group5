@@ -41,9 +41,10 @@ pip install -e .
 
 ### Running Locally
 ```bash
-export MCP_AUTH_TOKEN="mcp_awThuI7rWgonvsSO4WInzJ9IgB-yAT4kjALp200kFDA"
+# Retrieve from Google Cloud Secret Manager (Production / Recommended)
+export MCP_AUTH_TOKEN=$(gcloud secrets versions access latest --secret="altostrat-mcp-token" --project="junho-elevate" 2>/dev/null || echo "<YOUR_SECURE_MCP_TOKEN>")
 export GCP_PROJECT="junho-elevate"
-export GEMINI_MODEL="gemini-3.7-flash"
+export GEMINI_MODEL="gemini-3.5-flash"
 
 python app/main.py
 ```

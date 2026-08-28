@@ -27,3 +27,10 @@ variable "mcp_auth_token_secret" {
   type        = string
   default     = "altostrat-mcp-token"
 }
+
+variable "mcp_auth_token_value" {
+  description = "Sensitive Bearer auth token for FastMCP backend (injected via TF_VAR_mcp_auth_token_value or Secret Manager)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

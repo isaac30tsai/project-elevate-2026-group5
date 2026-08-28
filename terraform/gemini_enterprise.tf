@@ -92,8 +92,9 @@ resource "google_secret_manager_secret" "mcp_token_secret" {
 }
 
 resource "google_secret_manager_secret_version" "mcp_token_secret_val" {
+  count       = var.mcp_auth_token_value != "" ? 1 : 0
   secret      = google_secret_manager_secret.mcp_token_secret.id
-  secret_data = "mcp_awThuI7rWgonvsSO4WInzJ9IgB-yAT4kjALp200kFDA"
+  secret_data = var.mcp_auth_token_value
 }
 
 # IAM Permissions for Google Workspace Chat App to invoke Cloud Run Agent Runtime
