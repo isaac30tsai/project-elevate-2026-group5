@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Settings:
     # GCP Environment
-    gcp_project: str = os.getenv("GCP_PROJECT", "junho-elevate")
+    gcp_project: str = os.getenv("GCP_PROJECT", "altostrat-elevate")
     region: str = os.getenv("GCP_REGION", "asia-southeast1")
     environment: str = os.getenv("ENVIRONMENT", "dev")
     

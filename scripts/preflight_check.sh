@@ -2,9 +2,9 @@
 # Preflight Environment & Health Check for Altostrat HR & IT Agentic Solution
 set -e
 
-PROJECT_ID="${GCP_PROJECT:-junho-elevate}"
+PROJECT_ID="${GCP_PROJECT:-altostrat-elevate}"
 REGION="${GCP_REGION:-asia-southeast1}"
-SERVICE_URL="https://tpe-elevate-group5-agent-lydisbk46a-as.a.run.app"
+SERVICE_URL="${SERVICE_URL:-https://tpe-elevate-group5-agent.asia-southeast1.run.app}"
 
 echo "================================================================================"
 echo "  ALTOSTRAT HR AGENTIC SOLUTION - PREFLIGHT ENVIRONMENT & HEALTH CHECK"

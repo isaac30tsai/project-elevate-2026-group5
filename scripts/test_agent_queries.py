@@ -18,7 +18,7 @@ import urllib.error
 import urllib.request
 from typing import Any, Dict, Optional, Tuple
 
-DEFAULT_CLOUDRUN_URL = "https://tpe-elevate-group5-agent-lydisbk46a-as.a.run.app"
+DEFAULT_CLOUDRUN_URL = os.getenv("SERVICE_URL", "https://tpe-elevate-group5-agent.asia-southeast1.run.app")
 DEFAULT_LOCAL_URL = "http://localhost:8080"
 
 TEST_CASES = [
@@ -145,7 +145,7 @@ def get_gcloud_identity_token() -> Optional[str]:
 def send_chat_query(
     base_url: str,
     prompt: str,
-    email: str = "junhojang@altostrat.com",
+    email: str = "employee@altostrat.com",
     token: Optional[str] = None,
     timeout: int = 35,
 ) -> Tuple[int, Dict[str, Any], float]:
@@ -165,7 +165,7 @@ def send_chat_query(
         },
         "user": {
             "email": email,
-            "displayName": "Junho Jang",
+            "displayName": "Demo Employee",
         },
     }
 

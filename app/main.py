@@ -29,7 +29,7 @@ A2A_AGENT_CARD = {
     "protocolVersion": "0.3.0",
     "name": "tpe-elevate-group5-agent",
     "description": "Altostrat Singapore HR & IT Autonomous Assistant powered by Gemini 3.5 Flash & Google ADK",
-    "url": "https://tpe-elevate-group5-agent-lydisbk46a-as.a.run.app",
+    "url": os.getenv("SERVICE_URL", "https://tpe-elevate-group5-agent.asia-southeast1.run.app"),
     "version": "1.0.0",
     "provider": {
         "organization": "Altostrat Singapore Technology",
@@ -98,7 +98,7 @@ if HAS_FASTAPI:
             "agent_name": "tpe-elevate-group5-agent",
             "version": "1.0.0",
             "gemini_enterprise_engine": "projects/636377148299/locations/global/collections/default_collection/engines/tpe-elevate-training_1787798925486/assistants/default_assistant/agents/tpe-elevate-group5-agent",
-            "backend_service_url": "https://tpe-elevate-group5-agent-lydisbk46a-as.a.run.app",
+            "backend_service_url": os.getenv("SERVICE_URL", "https://tpe-elevate-group5-agent.asia-southeast1.run.app"),
             "observability": {
                 "tier1_cloud_trace": "ACTIVE",
                 "tier2_pii_content_protection": "NO_CONTENT",
@@ -232,11 +232,7 @@ if HAS_FASTAPI:
             or "EMP-558"
         )
         if "@" in str(raw_uid):
-            email_clean = str(raw_uid).replace("accounts.google.com:", "")
-            if "junhojang" in email_clean.lower():
-                user_id = "EMP-558"
-            else:
-                user_id = "EMP-558"
+            user_id = "EMP-558"
         else:
             user_id = str(raw_uid)
 
@@ -423,7 +419,7 @@ async def main():
     print("Simulating Gemini Enterprise Workspace Chat Inbound Message...")
     
     sample_headers = {
-        "x-goog-authenticated-user-email": "accounts.google.com:junhojang@altostrat.com"
+        "x-goog-authenticated-user-email": "accounts.google.com:employee@altostrat.com"
     }
     sample_chat_payload = {
         "type": "MESSAGE",
@@ -431,8 +427,8 @@ async def main():
             "text": "How many days of vacation and sick leave do I have remaining?"
         },
         "user": {
-            "email": "junhojang@altostrat.com",
-            "displayName": "Junho Jang"
+            "email": "employee@altostrat.com",
+            "displayName": "Demo Employee"
         }
     }
     

@@ -1,7 +1,7 @@
 variable "project_id" {
   description = "GCP Project ID for Argolis / Altostrat environment"
   type        = string
-  default     = "junho-elevate"
+  default     = "altostrat-elevate"
 }
 
 variable "region" {

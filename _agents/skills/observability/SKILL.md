@@ -10,9 +10,9 @@ Deploys and verifies the 4-tier telemetry pipeline across Cloud Trace, PII messa
 
 ## Verification Workflow
 1. Verify BigQuery table status:
-   `bq show --format=prettyjson junho-elevate:altostrat_hr_analytics.compliance_audit_log`
+   `bq show --format=prettyjson ${PROJECT_ID}:altostrat_hr_analytics.compliance_audit_log`
 2. Inspect Cloud Trace spans:
-   `gcloud trace spans list --project=junho-elevate`
+   `gcloud trace spans list --project=${PROJECT_ID}`
 3. FinOps token audit query:
    ```sql
    SELECT
@@ -23,7 +23,7 @@ Deploys and verifies the 4-tier telemetry pipeline across Cloud Trace, PII messa
      candidates_token_count,
      total_token_count,
      estimated_cost_usd
-   FROM `junho-elevate.altostrat_hr_analytics.compliance_audit_log`
+   FROM `${PROJECT_ID}.altostrat_hr_analytics.compliance_audit_log`
    ORDER BY event_timestamp DESC
    LIMIT 10;
    ```

@@ -8,7 +8,7 @@ This repository implements the production-grade **Altostrat HR & IT Agentic Solu
 ## Commands
 * **Run Preflight Check**: `bash scripts/preflight_check.sh`
 * **Run 4-Tier Golden Evaluation**: `python3 -m unittest eval_benchmark.py`
-* **Deploy to Vertex AI Agent Runtime**: `agents-cli deploy --deployment-target agent_runtime --project junho-elevate --region asia-southeast1 --service-name tpe-elevate-group5-agent`
+* **Deploy to Vertex AI Agent Runtime**: `agents-cli deploy --deployment-target agent_runtime --project ${GCP_PROJECT:-altostrat-elevate} --region asia-southeast1 --service-name tpe-elevate-group5-agent`
 * **Publish to Gemini Enterprise**: `agents-cli publish gemini-enterprise --gemini-enterprise-app-id "projects/636377148299/locations/global/collections/default_collection/engines/tpe-elevate-training_1787798925486" --display-name "tpe-elevate-group5-agent"`
 * **Local Gateway Server**: `python3 -m uvicorn app.main:app --port 8080`
 

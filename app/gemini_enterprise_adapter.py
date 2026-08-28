@@ -13,12 +13,12 @@ class GeminiEnterpriseAdapter:
         if auth_email:
             email_clean = auth_email.replace("accounts.google.com:", "")
             # Mapping demo email to employee ID
-            if "junhojang" in email_clean.lower():
+            if any(k in email_clean.lower() for k in ["employee", "demo", "altostrat", "emp-558"]):
                 return "EMP-558"
         
         # 2. Check Google Chat event sender
         sender_email = payload.get("user", {}).get("email", "")
-        if "junhojang" in sender_email.lower():
+        if any(k in sender_email.lower() for k in ["employee", "demo", "altostrat", "emp-558"]):
             return "EMP-558"
             
         return payload.get("employee_id", "EMP-558")

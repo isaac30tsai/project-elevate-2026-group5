@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://tpe-elevate-group5-agent-lydisbk46a-as.a.run.app",
+      "url": "https://tpe-elevate-group5-agent.asia-southeast1.run.app",
       "description": "Live Cloud Run Agent Runtime"
     }
   ],
@@ -38,7 +38,7 @@
                     "properties": {
                       "email": {
                         "type": "string",
-                        "example": "junhojang@altostrat.com"
+                        "example": "employee@altostrat.com"
                       }
                     }
                   }

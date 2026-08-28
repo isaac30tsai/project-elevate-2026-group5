@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ID="${GCP_PROJECT:-junho-elevate}"
+PROJECT_ID="${GCP_PROJECT:-altostrat-elevate}"
 REGION="${GCP_REGION:-asia-southeast1}"
 SERVICE_NAME="tpe-elevate-group5-agent"
 MCP_TOKEN="${MCP_AUTH_TOKEN:-$(gcloud secrets versions access latest --secret=altostrat-mcp-token --project="${PROJECT_ID}" 2>/dev/null || echo '')}"
