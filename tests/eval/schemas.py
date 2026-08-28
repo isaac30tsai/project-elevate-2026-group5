@@ -37,6 +37,11 @@ class FastMCPPayload(BaseModel):
         prio = v.get("priority")
         if prio and not any(p in str(prio) for p in ["1", "2", "3", "4"]):
             raise ValueError(f"Invalid ITSM priority: {prio}")
+        # Enforce down-classification of minor display/screen issues (EVAL-006 / BRD UC-1.3, FR-8.3)
+        short_desc = str(v.get("short_description", "")).lower()
+        if any(w in short_desc for w in ["dim", "flicker", "screen", "display", "monitor"]) and not any(k in short_desc for k in ["crash", "outage", "fire", "halt"]):
+            if prio and "1" in str(prio):
+                raise ValueError("Priority 1 Critical violation: Low-severity display incident must be down-classified to 4 - Low per BRD FR-8.3.")
         l_type = v.get("leave_type")
         if l_type and l_type not in ["Vacation", "Sick"]:
             raise ValueError(f"Unsupported leave type for WorkWeek: {l_type}")

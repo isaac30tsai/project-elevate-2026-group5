@@ -11,7 +11,7 @@ from app.prompts.system_prompt import HR_TASK_AGENT_PROMPT, COMPLIANCE_CRITIC_PR
 from app.tools.workweek_tools import WorkWeekClient
 from app.tools.service_immediately_tools import ServiceImmediatelyClient
 from app.tools.rag_tools import PolicyRAGClient
-from app.guardrails.model_armor import ModelArmorClient, ModelArmorPlugin
+from app.guardrails.model_armor import ModelArmorClient, ModelArmorPlugin, redact_pii
 from app.guardrails.dfa_validators import DFAValidator
 from app.storage.firestore_crypto import FirestoreCryptoManager, FirestoreStorageError, KMSEncryptionError
 from app.storage.bigquery_audit import BigQueryAuditLogger, BigQueryAuditError
@@ -537,12 +537,16 @@ class HRAgentOrchestrator:
         final_resp = final_certified_resp
 
         # 4. Storage (AES-256-GCM Envelope Encryption) & BigQuery Logging (Strict non-silent persistence)
+        # Verify that sensitive outputs are censored before being written in server-side audit logs and transcripts (PDPA 2012 / BRD FR-1.1)
+        censored_query = redact_pii(sanitized_query)
+        censored_resp = redact_pii(final_resp)
+
         try:
             self.crypto_storage.encrypt_transcript({
                 "session_id": f"sess-{trace_id[:8]}",
                 "employee_id": employee_id,
-                "query": sanitized_query,
-                "response": final_resp,
+                "query": censored_query,
+                "response": censored_resp,
                 "critic_verdict": critic_verdict
             }, fail_silently=False)
 

@@ -90,14 +90,17 @@ class ModelArmorClient:
             if pat.search(prompt):
                 elapsed_ms = (time.time() - start_time) * 1000
                 logger.warning(f"Model Armor Triggered: Violation pattern detected -> {pat.pattern}")
+                logger.error(f"THREAT_MONITORING: Active prompt injection attack intercepted by Model Armor: {pat.pattern}")
                 if "salon" in pat.pattern:
                     return False, f"Ethics Violation: Commercial entertainment involving adult entertainment or room salons is strictly BLOCKED under Altostrat Singapore Policy Section 14.2 (§14.2).", {
                         "reason": "ADULT_ENTERTAINMENT_VIOLATION",
                         "latency_ms": elapsed_ms,
                         "pattern": pat.pattern
                     }
-                return False, f"Security Violation: Prompt BLOCKED by Model Armor (<50ms shield: {elapsed_ms:.1f}ms).", {
+                return False, "Access Denied: Request BLOCKED by Model Armor security policy (Potential prompt injection or system instruction exfiltration attempt detected).", {
                     "reason": "PROMPT_INJECTION_DETECTED",
+                    "threat_level": "CRITICAL",
+                    "active_logging_threat": True,
                     "latency_ms": elapsed_ms,
                     "pattern": pat.pattern
                 }
