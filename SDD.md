@@ -3,7 +3,7 @@
 > **Document Title**: Enterprise Agentic Solution Design Document — MVP 1  
 > **Target System**: Altostrat Singapore HR & IT Autonomous Agent (`tpe-elevate-group5-agent`)  
 > **Specification Version**: v2.2 Enterprise Production Baseline  
-> **Cloud Provider**: Google Cloud Platform (Argolis Project: `junho-elevate`)  
+> **Cloud Provider**: Google Cloud Platform (Elevate Argolis Project)  
 > **Target Models**: Gemini 3.5 Flash (`gemini-3.5-flash`) via Vertex AI Agent Runtime  
 > **Author**: Group 5 Engineering & Architecture Working Group  
 > **Status**: Approved & Deployed  

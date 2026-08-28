@@ -41,10 +41,15 @@ pip install -e .
 
 ### Running Locally
 ```bash
-# Retrieve from Google Cloud Secret Manager (Production / Recommended)
-export MCP_AUTH_TOKEN=$(gcloud secrets versions access latest --secret="altostrat-mcp-token" --project="junho-elevate" 2>/dev/null || echo "<YOUR_SECURE_MCP_TOKEN>")
-export GCP_PROJECT="junho-elevate"
-export GEMINI_MODEL="gemini-3.5-flash"
+# 1. Target GCP Project & Model Configuration
+export GCP_PROJECT="<YOUR_GCP_PROJECT_ID>"          # e.g., your-argolis-project
+export GCP_REGION="asia-southeast1"                 # Target deployment region
+export GEMINI_MODEL="gemini-3.5-flash"              # Primary foundation model
+
+# 2. FastMCP Bearer Token (Set directly or retrieve dynamically from Secret Manager)
+export MCP_AUTH_TOKEN="<YOUR_FAST_MCP_BEARER_TOKEN>"
+# Or retrieve directly from Secret Manager:
+# export MCP_AUTH_TOKEN=$(gcloud secrets versions access latest --secret="altostrat-mcp-token" --project="${GCP_PROJECT}")
 
 python app/main.py
 ```

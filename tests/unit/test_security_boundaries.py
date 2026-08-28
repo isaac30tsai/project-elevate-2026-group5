@@ -69,3 +69,11 @@ def test_oidc_rejects_unverified_body_spoofing_in_prod():
         # In prod, body email is rejected; returns default identity, not the spoofed CEO
         assert resolved != "EMP-001"
         assert resolved == "EMP-558"
+
+
+def test_no_hardcoded_secrets_in_repo():
+    """CI security assertion: verify zero hardcoded tokens or secrets exist in repository."""
+    import subprocess
+    res = subprocess.run(["python3", "scripts/scan_secrets.py"], capture_output=True, text=True)
+    assert res.returncode == 0
+    assert "Zero hardcoded secrets or API tokens detected" in res.stdout

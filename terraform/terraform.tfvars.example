@@ -1,5 +1,7 @@
-project_id               = "junho-elevate"
+project_id               = "<YOUR_GCP_PROJECT_ID>"
 region                   = "asia-southeast1"
 environment              = "dev"
 gemini_enterprise_region = "global"
 mcp_auth_token_secret    = "altostrat-mcp-token"
+mcp_auth_token_value     = "<YOUR_SECURE_MCP_BEARER_TOKEN>"
+
