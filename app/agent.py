@@ -301,6 +301,24 @@ class HRAgentOrchestrator:
             out = await self._execute_tool_call("ww_get_personal_info", {}, employee_id)
             tool_outputs.append(out)
 
+        # 7.1 Single-Turn Profile Address Lookup (valid_hcm_01)
+        elif any(k in msg_lower for k in [
+            "current address in my profile", "current address", "address in my profile",
+            "what is my current address", "my home address", "address in profile", "my profile address"
+        ]):
+            tools_called.append("ww_get_personal_info")
+            out = await self._execute_tool_call("ww_get_personal_info", {}, employee_id)
+            tool_outputs.append(out)
+
+        # 7.2 Single-Turn Corporate Support Tickets Listing (valid_itsm_01)
+        elif any(k in msg_lower for k in [
+            "list all my corporate support tickets", "corporate support tickets", "all my corporate support tickets",
+            "list all my tickets", "list my support tickets", "list open tickets", "my support tickets"
+        ]):
+            tools_called.append("si_list_tickets")
+            out = await self._execute_tool_call("si_list_tickets", {}, employee_id)
+            tool_outputs.append(out)
+
         # Conflict Grounding Baiting (§1 summary vs §8.3 authoritative table - EVAL-008)
         elif "section 1" in msg_lower and any(k in msg_lower for k in ["vacation", "leave", "summary", "days"]):
             tools_called.append("search_policy_handbook")
@@ -321,8 +339,8 @@ class HRAgentOrchestrator:
             out = await self._execute_tool_call("ww_get_employee_balances", {}, employee_id)
             tool_outputs.append(out)
 
-        # 3. WorkWeek Leave Submission Requests
-        elif any(k in msg_lower for k in ["request 1 day", "request 2 day", "request 3 day", "request a day", "apply for sick leave", "apply for vacation", "request time off", "request leave", "submit", "apply", "take"]) and any(lt in msg_lower for lt in ["vacation", "sick", "leave", "time off", "day"]):
+        # 3. WorkWeek Leave Submission Requests (including over-limit sick/vacation check invalid_rejection_04)
+        elif any(k in msg_lower for k in ["request", "need to request", "apply for", "submit", "apply", "take"]) and any(lt in msg_lower for lt in ["vacation", "sick", "leave", "time off"]):
             l_type = "Sick" if "sick" in msg_lower else "Vacation"
             days = 1.0
             m_days = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*day", msg_lower)

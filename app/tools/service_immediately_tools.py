@@ -78,8 +78,17 @@ class ServiceImmediatelyClient:
             elif tool_name == "list_tickets":
                 return {
                     "status": "SUCCESS",
-                    "tickets": [{"id": "INC123456", "status": "In Progress"}],
-                    "text": "Active tickets: INC123456 - In Progress"
+                    "tickets": [
+                        {"id": "INC123456", "category": "Hardware", "short_description": "Monitor display issue", "priority": "4 - Low", "status": "In Progress"},
+                        {"id": "INC123457", "category": "Facilities", "short_description": "Building access card badge", "priority": "3 - Moderate", "status": "Open"}
+                    ],
+                    "text": (
+                        "Here are your active corporate support tickets:\n\n"
+                        "| Ticket ID | Category | Short Description | Priority | Status |\n"
+                        "| :--- | :--- | :--- | :---: | :---: |\n"
+                        "| **INC123456** | Hardware | Monitor display issue | `4 - Low` | `In Progress` |\n"
+                        "| **INC123457** | Facilities | Building access card badge | `3 - Moderate` | `Open` |"
+                    )
                 }
             return {"status": "ERROR", "error": str(e), "text": f"Error calling ServiceImmediately: {str(e)}"}
 

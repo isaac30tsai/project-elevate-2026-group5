@@ -76,9 +76,10 @@ class WorkWeekClient:
                     "text": f"Time-off request submitted successfully: {arguments.get('leave_type', 'Vacation')} for {arguments.get('days', 1)} days."
                 }
             elif tool_name == "get_personal_info":
+                emp_id = arguments.get("employee_id", "EMP-4")
                 return {
                     "status": "SUCCESS",
-                    "text": "Employee EMP-558: Software Engineer, Altostrat Singapore, Office: 70 Pasir Panjang Rd. Reporting Manager: David Miller (EMP-1)."
+                    "text": f"Employee {emp_id}: Staff Software Engineer, Altostrat Singapore. Home Address: 70 Pasir Panjang Rd, #03-01, Singapore 117371. Office: 70 Pasir Panjang Rd. Reporting Manager: David Miller (EMP-1)."
                 }
             elif tool_name == "update_personal_info":
                 addr = arguments.get("address", "70 Pasir Panjang Rd, Singapore")

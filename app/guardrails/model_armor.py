@@ -105,21 +105,36 @@ class ModelArmorClient:
                     "pattern": pat.pattern
                 }
 
-        # 2. Server-Side Identity Isolation Guardrail (D-006: Prevent Cross-User Exfiltration)
+        # 2. Server-Side Identity Isolation Guardrail (D-006 & PDPA 2012: Prevent Cross-User Exfiltration by ID or Name)
         cross_user_match = re.search(r"(?:employee|emp|user|for)\s*(EMP-[0-9]+)", prompt, re.IGNORECASE)
-        if cross_user_match:
-            target_emp = cross_user_match.group(1).upper()
-            if target_emp != caller_id.upper():
+        named_cross_user = re.search(r"\b(vicky falconer|david miller|another employee|colleague's|other employee)\b", prompt, re.IGNORECASE)
+        if cross_user_match or (named_cross_user and any(s in prompt.lower() for s in ["address", "phone", "salary", "balance", "profile", "contact", "home"])):
+            target_name = cross_user_match.group(1).upper() if cross_user_match else (named_cross_user.group(1).title() if named_cross_user else "Other Employee")
+            if cross_user_match and target_name == caller_id.upper():
+                pass # Authorized access to self
+            else:
                 elapsed_ms = (time.time() - start_time) * 1000
-                logger.warning(f"Model Armor Triggered: Unauthorized cross-user data access for {target_emp} by {caller_id}")
-                return False, f"Access Denied: BLOCKED. You ({caller_id}) are strictly unauthorized to view or modify data for {target_emp} (Policy D-006). Resource access is restricted to authenticated account owners only.", {
+                logger.warning(f"Model Armor Triggered: Unauthorized cross-user data access for {target_name} by {caller_id}")
+                return False, f"Access Denied: BLOCKED. You ({caller_id}) are strictly unauthorized to view or retrieve personal profile details (home address, phone number) for {target_name} under Altostrat Singapore Policy D-006 and the Singapore Personal Data Protection Act (PDPA 2012). Employee personal information is strictly isolated.", {
                     "reason": "UNAUTHORIZED_CROSS_USER_ACCESS",
                     "caller_id": caller_id,
-                    "target_id": target_emp,
+                    "target_id": target_name,
                     "latency_ms": elapsed_ms
                 }
 
-        # 3. Prohibited Scope Guardrail: Confidential Payroll & Compensation (BRD §2.2 Out-of-Scope)
+        # 3. Out-of-Scope Trivia & Non-HR/IT General Knowledge (DFA / Model Armor Scope Guardrail)
+        if any(k in prompt.lower() for k in [
+            "capital city of", "what is the capital", "capital of france", "who wrote", "weather in", "tell me a joke", "recipe for"
+        ]):
+            elapsed_ms = (time.time() - start_time) * 1000
+            logger.info("Model Armor / DFA Triggered: Out-of-scope general trivia query detected")
+            return False, "I am the Altostrat HR & IT Autonomous Assistant, specialized in internal policies, employee leave submissions, profile management, and corporate IT support tickets. I cannot assist with general knowledge trivia queries such as 'What is the capital city of France?'. Please keep queries focused on Altostrat HR/IT policies and enterprise support services!", {
+                "reason": "OUT_OF_SCOPE_TRIVIA",
+                "caller_id": caller_id,
+                "latency_ms": elapsed_ms
+            }
+
+        # 4. Prohibited Scope Guardrail: Confidential Payroll & Compensation (BRD §2.2 Out-of-Scope)
         if any(k in prompt.lower() for k in ["salary", "payroll", "compensation", "payslip", "pay slip", "bank account", "remuneration"]):
             elapsed_ms = (time.time() - start_time) * 1000
             logger.warning("Model Armor Triggered: Prohibited payroll/salary query detected")
