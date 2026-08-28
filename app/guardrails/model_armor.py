@@ -51,6 +51,7 @@ class ModelArmorClient:
             re.compile(r"system:\s*override", re.IGNORECASE),
             re.compile(r"drop all tables", re.IGNORECASE),
             re.compile(r"elevate privileges", re.IGNORECASE),
+            re.compile(r"\b(room salon|hostess bar|strip club|adult entertainment)\b", re.IGNORECASE),
         ]
 
     async def _query_cloud_model_armor(self, prompt: str) -> Tuple[bool, str, Dict[str, Any]]:
@@ -88,7 +89,13 @@ class ModelArmorClient:
         for pat in self._injection_patterns:
             if pat.search(prompt):
                 elapsed_ms = (time.time() - start_time) * 1000
-                logger.warning(f"Model Armor Triggered: Prompt injection pattern detected -> {pat.pattern}")
+                logger.warning(f"Model Armor Triggered: Violation pattern detected -> {pat.pattern}")
+                if "salon" in pat.pattern:
+                    return False, f"Ethics Violation: Commercial entertainment involving adult entertainment or room salons is strictly BLOCKED under Altostrat Singapore Policy Section 14.2 (§14.2).", {
+                        "reason": "ADULT_ENTERTAINMENT_VIOLATION",
+                        "latency_ms": elapsed_ms,
+                        "pattern": pat.pattern
+                    }
                 return False, f"Security Violation: Prompt BLOCKED by Model Armor (<50ms shield: {elapsed_ms:.1f}ms).", {
                     "reason": "PROMPT_INJECTION_DETECTED",
                     "latency_ms": elapsed_ms,

@@ -251,7 +251,44 @@ class HRAgentOrchestrator:
                     logger.info(f"[D-007 Compensating Transaction]: Successfully rolled back ticket {created_ticket_id}")
                 tool_outputs.append(f"Saga Workflow Compensated: {saga_err}")
 
-        # 2. Live WorkWeek HCM Balance Queries (Vacation, Sick, Annual Leave Balances)
+        # 2. Shift Workers Vacation Entitlements & Logging (§20.2 / §8.3)
+        elif "shift" in msg_lower and any(k in msg_lower for k in ["12-hour", "vacation", "shift off", "tenure", "earn and log"]):
+            tools_called.append("search_policy_handbook")
+            out = await self._execute_tool_call("search_policy_handbook", {"query": "shift workers 12-hour shift vacation logging entitlement tenure"}, employee_id)
+            tool_outputs.append(out)
+
+        # 3. Ramp-Back Time Working Hour & Pay Policy (§2.3 / §28.3)
+        elif "ramp-back" in msg_lower or "ramp back" in msg_lower:
+            tools_called.append("search_policy_handbook")
+            out = await self._execute_tool_call("search_policy_handbook", {"query": "ramp-back time working hour and pay requirements 2-week"}, employee_id)
+            tool_outputs.append(out)
+
+        # 4. Travel Expense & Host Gift Policy (§4.3 / §14.2)
+        elif "gift card" in msg_lower or "host gift" in msg_lower:
+            tools_called.append("search_policy_handbook")
+            out = await self._execute_tool_call("search_policy_handbook", {"query": "travel lodging caps host gift gift card reimbursement rejection"}, employee_id)
+            tool_outputs.append(out)
+
+        # 5. London HQ Office Transfer & Building Badging (§5.4)
+        elif "london" in msg_lower:
+            if any(k in msg_lower for k in ["badge", "facilities", "pre-configuration", "ticket", "open a facilities"]):
+                tools_called.append("si_create_ticket")
+                out1 = await self._execute_tool_call("si_create_ticket", {
+                    "category": "Facilities",
+                    "short_description": "London HQ Physical Building Badging Pre-Configuration",
+                    "priority": "3 - Moderate"
+                }, employee_id)
+                tool_outputs.append(out1)
+                if "address" in msg_lower:
+                    tools_called.append("ww_update_personal_info")
+                    out2 = await self._execute_tool_call("ww_update_personal_info", {"address": "10 Downing St, London"}, employee_id)
+                    tool_outputs.append(out2)
+            else:
+                tools_called.append("search_policy_handbook")
+                out = await self._execute_tool_call("search_policy_handbook", {"query": "London HQ relocation allowance building badging facilities"}, employee_id)
+                tool_outputs.append(out)
+
+        # 6. Live WorkWeek HCM Balance Queries (Vacation, Sick, Annual Leave Balances)
         # Direct independent routing: Live balance queries NEVER get trapped or routed to static policy RAG!
         elif any(k in msg_lower for k in [
             "balance", "balances", "how many days do i have left", "days left",

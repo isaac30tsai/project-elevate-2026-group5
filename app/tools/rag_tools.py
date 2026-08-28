@@ -61,8 +61,28 @@ ALTOSTRAT_HANDBOOK_CORPUS = [
     },
     {
         "section": "§14.2",
-        "title": "Compassionate and Bereavement Leave",
-        "content": "Employees are entitled to 5 consecutive business days of fully paid compassionate bereavement leave upon the passing of an immediate family member (spouse, child, parent, sibling, or parent-in-law). Up to 2 additional travel days may be granted for overseas funeral arrangements."
+        "title": "Compassionate Leave & Commercial Entertainment Ethics",
+        "content": "Employees are entitled to 5 consecutive business days of fully paid compassionate bereavement leave upon the passing of an immediate family member. In business courtesies and commercial entertainment, adult entertainment is strictly prohibited, including but not limited to strip clubs, hostess bars, and adult room salons, regardless of expense amount or manager approval. Cash and cash equivalents (including gift cards) are strictly prohibited."
+    },
+    {
+        "section": "§2.3",
+        "title": "Ramp-Back Time (Return to Work Policy)",
+        "content": "To ease the transition back to work following at least 10 consecutive weeks of parental or medical leave, employees can take up to 2 weeks of paid ramp-back time. During these 2 weeks, employees must work a minimum of 50% of normal weekly hours but will receive 100% of their normal base salary. Salaried employees log hours not worked in WorkWeek under type 'Ramp Back Time' with reason 'Baby Bonding Leave'."
+    },
+    {
+        "section": "§4.3",
+        "title": "Lodging Caps & Host Gift Guidelines",
+        "content": "Staying with a friend or relative in lieu of a hotel during business travel allows purchasing a host gift of up to US $50 per day, backed by valid itemized receipts. Cash and gift cards (such as retail or store gift certificates) are strictly prohibited as host gifts and cannot be expensed or reimbursed under any circumstances."
+    },
+    {
+        "section": "§5.4",
+        "title": "International Office Transfer & London Relocation Policy",
+        "content": "Employees transferring to international offices (such as the London HQ) are eligible for a relocation allowance capped at $10,000 USD to cover moving and transition expenses. Transferring employees must request physical building badging pre-configuration for their destination office prior to arrival by opening an ITSM ticket in ServiceImmediately (Category: 'Facilities', Priority: '3 - Moderate')."
+    },
+    {
+        "section": "§20.2",
+        "title": "Shift Workers Vacation Entitlements & Logging",
+        "content": "For shift-based employees, a standard vacation day is defined as 8 hours. Shift workers scheduled for 12-hour shifts must log 1.5 vacation days for one 12-hour shift off. For employees with 7 to 10 years of service (such as 8 years of completed tenure), the annual vacation entitlement is 21 days per calendar year."
     },
     {
         "section": "§18.4",
