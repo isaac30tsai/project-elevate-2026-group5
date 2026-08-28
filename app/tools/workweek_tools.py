@@ -168,5 +168,16 @@ WORKWEEK_TOOLS_SCHEMA = [
             "properties": {},
             "required": []
         }
+    },
+    {
+        "name": "ww_cancel_time_off",
+        "description": "Cancel a pending or unapproved time-off request record in WorkWeek HCM and restore employee balance.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "request_id": {"type": "integer", "description": "ID of the pending request to cancel"}
+            },
+            "required": ["request_id"]
+        }
     }
 ]

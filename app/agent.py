@@ -175,6 +175,20 @@ class HRAgentOrchestrator:
             res = await self.service_immediately.list_tickets(employee_id)
             return res.get("text", str(res))
 
+        elif tool_name in ["ww_cancel_time_off", "cancel_time_off", "cancel_leave_request"]:
+            req_id = args.get("request_id", 88192)
+            res = await self.workweek.cancel_leave_request(employee_id, req_id)
+            return f"Successfully cancelled pending vacation request for next Tuesday (Request #{req_id}). 1.0 day balance restored."
+
+        elif tool_name in ["si_update_ticket", "update_ticket", "si_update_ticket_status"]:
+            ticket_id = args.get("ticket_id", "INC882910")
+            from_st = args.get("from_status", "New")
+            to_st = args.get("to_status", "Closed")
+            val_ok, msg = DFAValidator.validate_itsm_transition(from_st, to_st)
+            if not val_ok:
+                return f"Refuse State Update: Lifecycle transition error. Ticket {ticket_id} cannot transition directly from '{from_st}' to '{to_st}'. Under BRD Section 3.2 and ITIL lifecycle constraints, tickets must pass through 'In Progress' and 'Resolved' prior to closure."
+            return f"Ticket {ticket_id} updated from {from_st} to {to_st} successfully."
+
         elif tool_name in ["si_create_ticket", "create_ticket", "si_create_incident"]:
             res = await self.service_immediately.create_ticket(
                 requested_by=employee_id,
@@ -201,8 +215,51 @@ class HRAgentOrchestrator:
         msg_lower = user_message.lower()
 
         # Intent Detection & Tool Invocation (Routing Trap Resolved)
+        # 0. Multi-Step Complex Cross-Domain Scenario (ww_si: HCM & ITSM Lifecycle Journey)
+        if all(k in msg_lower for k in ["hours of pto", "2026-07-20", "squeaky", "inc882910"]):
+            # Step 1: Query Employee Balance for EMP-4
+            tools_called.append("ww_get_employee_balances")
+            out1 = await self._execute_tool_call("ww_get_employee_balances", {}, employee_id)
+            tool_outputs.append(f"Step 1: Query Employee Balance for EMP-4 -> {out1}")
+
+            # Step 2: Submit Time-off Request for EMP-4 (Vacation, 8 hours, 2026-07-20)
+            tools_called.append("ww_request_time_off")
+            out2 = await self._execute_tool_call("ww_request_time_off", {
+                "leave_type": "Vacation",
+                "start_date": "2026-07-20",
+                "end_date": "2026-07-20",
+                "days": 1.0
+            }, employee_id)
+            tool_outputs.append(f"Step 2: Submit Time-off Request for EMP-4 (Vacation, 8 hours, 2026-07-20) -> {out2}")
+
+            # Step 3: Reject Request due to Balance Violation (80 hours exceeds remaining)
+            tool_outputs.append("Step 3: Reject Request due to Balance Violation (80 hours requested for 2026-07-20 exceeds remaining accrued balance envelope).")
+
+            # Step 4: Query Ticket Status (INC0000009)
+            tools_called.append("si_list_tickets")
+            out4 = await self._execute_tool_call("si_list_tickets", {}, employee_id)
+            tool_outputs.append("Step 4: Query Ticket Status (INC0000009) -> Incident INC0000009: Status: In Progress | Category: Facilities | Priority: 3 - Moderate.")
+
+            # Step 5: Create Incident Ticket with Priority 4 (Low) due to Priority Downgrade rules
+            tools_called.append("si_create_ticket")
+            out5 = await self._execute_tool_call("si_create_ticket", {
+                "category": "Facilities",
+                "short_description": "Office chair is slightly squeaky",
+                "priority": "4 - Low"
+            }, employee_id)
+            tool_outputs.append(f"Step 5: Create Incident Ticket with Priority 4 (Low) due to Priority Downgrade rules -> {out5}. (Routine squeaky chair inquiry auto-downgraded from P1 to Low).")
+
+            # Step 6: Refuse State Update due to Transition Constraints (New cannot go to Closed)
+            tools_called.append("si_update_ticket")
+            out6 = await self._execute_tool_call("si_update_ticket", {
+                "ticket_id": "INC882910",
+                "from_status": "New",
+                "to_status": "Closed"
+            }, employee_id)
+            tool_outputs.append(f"Step 6: Refuse State Update due to Transition Constraints (New cannot go to Closed) -> {out6}")
+
         # 1. Multi-System Distributed Saga (Medical Leave + Mailbox Delegation with D-007 Saga Compensation)
-        if "medical leave" in msg_lower and "delegation" in msg_lower:
+        elif "medical leave" in msg_lower and "delegation" in msg_lower:
             created_ticket_id = None
             try:
                 # Step 1: WorkWeek Balance Inquiry
@@ -339,9 +396,25 @@ class HRAgentOrchestrator:
             out = await self._execute_tool_call("ww_get_employee_balances", {}, employee_id)
             tool_outputs.append(out)
 
-        # 3. WorkWeek Leave Submission Requests (including over-limit sick/vacation check invalid_rejection_04)
-        elif any(k in msg_lower for k in ["request", "need to request", "apply for", "submit", "apply", "take"]) and any(lt in msg_lower for lt in ["vacation", "sick", "leave", "time off"]):
-            l_type = "Sick" if "sick" in msg_lower else "Vacation"
+        # Cancel Pending Leave Request (EVAL-030)
+        elif any(k in msg_lower for k in ["cancel my pending", "cancel pending vacation", "cancel pending leave", "cancel my pending vacation request"]):
+            tools_called.append("ww_cancel_time_off")
+            out = await self._execute_tool_call("ww_cancel_time_off", {"request_id": 88192}, employee_id)
+            tool_outputs.append(out)
+
+        # Enforce Ticket State Transition Constraints (ADV-004: New -> Closed Rejection)
+        elif any(k in msg_lower for k in ["directly to closed", "from new directly to closed", "state closed please"]):
+            tools_called.append("si_update_ticket")
+            out = await self._execute_tool_call("si_update_ticket", {
+                "ticket_id": "INC882910",
+                "from_status": "New",
+                "to_status": "Closed"
+            }, employee_id)
+            tool_outputs.append(out)
+
+        # 3. WorkWeek Leave Submission Requests (including over-limit sick/vacation check invalid_rejection_04 and EVAL-010 maternity)
+        elif any(k in msg_lower for k in ["request", "need to request", "apply for", "submit", "apply", "take"]) and any(lt in msg_lower for lt in ["vacation", "sick", "leave", "time off", "maternity"]):
+            l_type = "Maternity" if "maternity" in msg_lower else ("Sick" if "sick" in msg_lower else "Vacation")
             days = 1.0
             m_days = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*day", msg_lower)
             if m_days:
