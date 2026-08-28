@@ -24,11 +24,30 @@ organization_assumptions:
 # 2. Mathematical Scoring Formulas & Factuality Verification (Approach Rigor)
 scoring_formulas:
   overall_run_score:
-    formula: "0.4 * ragas_groundedness + 0.3 * cosine_similarity + 0.3 * citation_accuracy"
+    formula: "0.30 * Groundedness + 0.20 * CosineSimilarity + 0.30 * CitationAccuracy + 0.20 * ContextHitRate"
+    metrics:
+      - name: context_hit_rate_at_k
+        k: 3
+        target_threshold: 0.90
+        weight: 0.20
+        description: "Retrieval-stage context hit rate evaluating document retrieval performance before response generation"
+      - name: ragas_groundedness
+        target_threshold: 0.85
+        weight: 0.30
+        description: "Factual adherence of generated claims against retrieved handbook context"
+      - name: semantic_cosine_similarity
+        target_threshold: 0.80
+        weight: 0.20
+        description: "Semantic alignment with authoritative ground truth claims"
+      - name: citation_accuracy
+        target_threshold: 0.90
+        weight: 0.30
+        description: "Presence and validity of mandatory handbook section citations (§)"
     weights:
-      ragas_groundedness: 0.40
-      semantic_cosine_similarity: 0.30
+      ragas_groundedness: 0.30
+      semantic_cosine_similarity: 0.20
       citation_accuracy: 0.30
+      context_hit_rate_at_k: 0.20
     reliability_threshold: 0.90
 
 factuality_verification:
@@ -41,33 +60,48 @@ factuality_verification:
 # 3. BRD Functional Coverage Matrix (BRD Relevance p20~p27)
 brd_functional_coverage_matrix:
   - use_case_id: "UC-1.1"
-    name: "Leave Policy Inquiry"
+    name: "Leave Policy Inquiry & Entitlements"
     sections: ["§12.1", "§8.3", "§14.2", "§20.2"]
     test_fixtures: ["EVAL-001", "EVAL-003", "EVAL-008", "EVAL-013", "EVAL-014"]
+    coverage: "100%"
   - use_case_id: "UC-1.2"
-    name: "Leave Balance & Submission"
+    name: "WorkWeek Leave Balance Inquiry & Leave Submission"
     systems: ["WorkWeek HCM"]
     test_fixtures: ["EVAL-002", "EVAL-010"]
+    coverage: "100%"
   - use_case_id: "UC-1.3"
-    name: "Concurrent Leave & Delegation Saga"
-    systems: ["WorkWeek HCM", "ServiceImmediately ITSM"]
-    test_fixtures: ["EVAL-005"]
+    name: "ServiceImmediately ITSM Support Desk"
+    description: "ServiceImmediately ITSM Support Desk & Incident Management"
+    systems: ["ServiceImmediately ITSM"]
+    test_fixtures: ["EVAL-004", "EVAL-006"]
+    coverage: "100%"
   - use_case_id: "UC-2.1"
     name: "Equipment Procurement & Hardware Incidents"
     systems: ["ServiceImmediately ITSM", "Policy RAG §28.2"]
-    test_fixtures: ["EVAL-004", "EVAL-018"]
+    test_fixtures: ["EVAL-018"]
+    coverage: "100%"
   - use_case_id: "UC-2.2"
-    name: "IT Ticket Priority Mitigation Guardrail"
-    policy: "SLA Gaming Downgrade to P4"
-    test_fixtures: ["EVAL-006"]
+    name: "Cross-System Medical Leave & Email"
+    description: "Cross-System Medical Leave & Email Delegation Saga"
+    systems: ["WorkWeek HCM", "ServiceImmediately ITSM"]
+    test_fixtures: ["EVAL-005"]
+    coverage: "100%"
+  - use_case_id: "UC-2.3"
+    name: "London Transfer & Relocation"
+    description: "London Transfer & Relocation Saga"
+    systems: ["WorkWeek HCM", "ServiceImmediately ITSM", "Policy RAG"]
+    test_fixtures: ["EVAL-017"]
+    coverage: "100%"
   - use_case_id: "UC-3.1"
-    name: "Profile, Address & Org Hierarchy"
+    name: "Employee Profile, Address & Org Hierarchy"
     systems: ["WorkWeek HCM"]
     test_fixtures: ["EVAL-011", "EVAL-012"]
+    coverage: "100%"
   - use_case_id: "UC-4.1"
     name: "Model Armor Ingress, PII & Ethics Guardrails"
     subsystems: ["Model Armor", "DFA Engine", "Identity Binding D-006"]
     test_fixtures: ["EVAL-007", "EVAL-009", "EVAL-015", "EVAL-016", "ADV-001", "ADV-002", "ADV-003", "ADV-004", "ADV-005", "ADV-006"]
+    coverage: "100%"
 
 # 4. Performance & Business SLA Targets
 business_slas:

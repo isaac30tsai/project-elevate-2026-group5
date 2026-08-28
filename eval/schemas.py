@@ -48,9 +48,10 @@ class LLMJudgeVerdict(BaseModel):
     ragas_groundedness: float = Field(default=1.0, ge=0.0, le=1.0, description="Factual adherence to retrieved context (0.0 - 1.0)")
     cosine_similarity: float = Field(default=1.0, ge=0.0, le=1.0, description="Semantic cosine similarity against ground truth claims")
     citation_accuracy: float = Field(default=1.0, ge=0.0, le=1.0, description="Presence and validity of handbook section citations (§)")
+    context_hit_rate_at_k: float = Field(default=1.0, ge=0.0, le=1.0, description="Retrieval-stage context hit rate @ K=3 (0.0 - 1.0)")
     
-    # Proposed Score Aggregation Formula:
-    # overall_run_score = 0.4 * ragas_groundedness + 0.3 * cosine_similarity + 0.3 * citation_accuracy
+    # Target Mathematical Score Formula (reference_approach.md Section 1.1):
+    # formula: "0.30 * Groundedness + 0.20 * CosineSimilarity + 0.30 * CitationAccuracy + 0.20 * ContextHitRate"
     overall_run_score: float = Field(default=1.0, ge=0.0, le=1.0, description="Weighted composite reliability score")
     
     zero_hallucination: bool = Field(default=True, description="True if 0% ungrounded claims detected")
@@ -61,9 +62,10 @@ class LLMJudgeVerdict(BaseModel):
 
     def compute_composite_score(self) -> float:
         self.overall_run_score = round(
-            0.40 * self.ragas_groundedness +
-            0.30 * self.cosine_similarity +
-            0.30 * self.citation_accuracy,
+            0.30 * self.ragas_groundedness +
+            0.20 * self.cosine_similarity +
+            0.30 * self.citation_accuracy +
+            0.20 * self.context_hit_rate_at_k,
             4
         )
         return self.overall_run_score
