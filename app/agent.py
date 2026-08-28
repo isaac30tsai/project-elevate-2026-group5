@@ -214,7 +214,9 @@ class HRAgentOrchestrator:
         elif any(k in msg_lower for k in [
             "balance", "balances", "how many days do i have left", "days left",
             "days remaining", "accrued and available", "available vacation",
-            "vacation balance", "sick balance", "leave balance", "annual leave balance"
+            "vacation balance", "sick balance", "leave balance", "annual leave balance",
+            "vacation days do i have left", "sick days do i have left", "days do i have left",
+            "how many vacation days", "how many sick days", "leave do i have left"
         ]):
             tools_called.append("ww_get_employee_balances")
             out = await self._execute_tool_call("ww_get_employee_balances", {}, employee_id)
@@ -248,8 +250,8 @@ class HRAgentOrchestrator:
             tool_outputs.append(out)
 
         # 5. ServiceImmediately ITSM Ticketing & Incident Queries
-        elif any(k in msg_lower for k in ["ticket", "incident", "keyboard is broken", "laptop", "monitor display", "helpdesk", "broken hardware"]):
-            if "status of ticket" in msg_lower or "ticket inc" in msg_lower:
+        elif any(k in msg_lower for k in ["ticket", "incident", "keyboard is broken", "laptop", "monitor display", "helpdesk", "broken hardware", "inc", "status of inc"]):
+            if any(k in msg_lower for k in ["status of ticket", "ticket inc", "status of inc", "status of", "what is the status"]):
                 tools_called.append("si_list_tickets")
                 out = await self._execute_tool_call("si_list_tickets", {}, employee_id)
                 tool_outputs.append(out)
