@@ -188,9 +188,9 @@ class HRAgentOrchestrator:
             res = await self.rag.search_policy(args.get("query", ""))
             if res.get("status") == "SUCCESS":
                 hits = res.get("results", [])
-                lines = [f"[출처: Altostrat HR Policy Handbook Section {h['section'].replace('§', '')}] {h['title']}: {h['content']}" for h in hits[:2]]
+                lines = [f"[Source: Altostrat HR Policy Handbook Section {h['section'].replace('§', '')} (§{h['section'].replace('§', '')})] {h['title']}: {h['content']}" for h in hits[:2]]
                 return "\n".join(lines)
-            return res.get("message", "사내 정책 핸드북에 명시되지 않은 사항이므로 HR 담당자(people-ops@altostrat.com)에게 문의 바랍니다.")
+            return res.get("message", "This matter is not specified in the Altostrat Singapore Employee Policy Handbook. Please contact People Operations (people-ops@altostrat.com) directly.")
 
         return f"Unknown tool: {tool_name}"
 

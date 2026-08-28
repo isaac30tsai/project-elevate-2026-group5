@@ -45,6 +45,6 @@ async def test_rag_absent_policy_refusal():
     res = await orchestrator.run(query, employee_id="EMP-558")
     assert res["status"] == "SUCCESS"
     # Must refuse with explicit policy referral notice
-    assert "사내 정책 핸드북에 명시되지 않은 사항이므로 HR 담당자" in res["response"] or "not covered" in res["response"].lower() or "people-ops@altostrat.com" in res["response"]
+    assert "not specified in the" in res["response"].lower() or "people-ops@altostrat.com" in res["response"]
     # Must not hallucinate coverage
     assert "reimbursed up to" not in res["response"].lower()

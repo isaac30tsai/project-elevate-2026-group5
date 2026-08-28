@@ -164,7 +164,7 @@ class PolicyRAGClient:
                 "source": "Altostrat Singapore Policy Handbook Knowledge Base",
                 "results": [],
                 "primary_section": None,
-                "message": "사내 정책 핸드북에 명시되지 않은 사항이므로 HR 담당자(people-ops@altostrat.com)에게 문의 바랍니다. (This matter is not specified in the company policy handbook. Please consult People Operations at people-ops@altostrat.com.)"
+                "message": "This matter is not specified in the Altostrat Singapore Employee Policy Handbook. Please contact People Operations (people-ops@altostrat.com) directly."
             }
 
         return {
