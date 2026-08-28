@@ -158,10 +158,14 @@ class PolicyRAGClient:
 
         scored.sort(key=lambda x: x[0], reverse=True)
         hits = [item[1] for item in scored[:3]]
-
         if not hits:
-            # General fallback if no specific terms matched
-            hits = [ALTOSTRAT_HANDBOOK_CORPUS[3]] # §12.1 Outpatient sick leave
+            return {
+                "status": "NOT_FOUND",
+                "source": "Altostrat Singapore Policy Handbook Knowledge Base",
+                "results": [],
+                "primary_section": None,
+                "message": "사내 정책 핸드북에 명시되지 않은 사항이므로 HR 담당자(people-ops@altostrat.com)에게 문의 바랍니다. (This matter is not specified in the company policy handbook. Please consult People Operations at people-ops@altostrat.com.)"
+            }
 
         return {
             "status": "SUCCESS",

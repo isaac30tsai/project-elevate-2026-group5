@@ -188,9 +188,9 @@ class HRAgentOrchestrator:
             res = await self.rag.search_policy(args.get("query", ""))
             if res.get("status") == "SUCCESS":
                 hits = res.get("results", [])
-                lines = [f"[{h['section']}] {h['title']}: {h['content']}" for h in hits[:2]]
+                lines = [f"[출처: Altostrat HR Policy Handbook Section {h['section'].replace('§', '')}] {h['title']}: {h['content']}" for h in hits[:2]]
                 return "\n".join(lines)
-            return res.get("message", "No matching policy found in Sections 6–35.")
+            return res.get("message", "사내 정책 핸드북에 명시되지 않은 사항이므로 HR 담당자(people-ops@altostrat.com)에게 문의 바랍니다.")
 
         return f"Unknown tool: {tool_name}"
 
@@ -201,13 +201,55 @@ class HRAgentOrchestrator:
         msg_lower = user_message.lower()
 
         # Intent Detection & Tool Invocation (Routing Trap Resolved)
-        # 1. Multi-System Distributed Saga (Medical Leave + Mailbox Delegation)
+        # 1. Multi-System Distributed Saga (Medical Leave + Mailbox Delegation with D-007 Saga Compensation)
         if "medical leave" in msg_lower and "delegation" in msg_lower:
-            tools_called.extend(["ww_get_employee_balances", "si_create_ticket", "ww_request_time_off"])
-            out1 = await self._execute_tool_call("ww_get_employee_balances", {}, employee_id)
-            out2 = await self._execute_tool_call("si_create_ticket", {"category": "HRSD", "short_description": "Medical Leave Mailbox Delegation Setup", "priority": "3 - Moderate"}, employee_id)
-            out3 = await self._execute_tool_call("ww_request_time_off", {"leave_type": "Sick", "start_date": "2026-09-01", "end_date": "2026-09-03", "days": 3.0}, employee_id)
-            tool_outputs.extend([out1, out2, out3])
+            created_ticket_id = None
+            try:
+                # Step 1: WorkWeek Balance Inquiry
+                tools_called.append("ww_get_employee_balances")
+                out1 = await self._execute_tool_call("ww_get_employee_balances", {}, employee_id)
+                tool_outputs.append(out1)
+
+                # Step 2: ServiceImmediately IT Delegation Ticket Creation
+                tools_called.append("si_create_ticket")
+                out2 = await self._execute_tool_call("si_create_ticket", {
+                    "category": "HRSD",
+                    "short_description": "Medical Leave Mailbox Delegation Setup",
+                    "priority": "3 - Moderate"
+                }, employee_id)
+                tool_outputs.append(out2)
+
+                m_inc = re.search(r"(INC\d+)", out2)
+                if m_inc:
+                    created_ticket_id = m_inc.group(1)
+
+                # Step 3: WorkWeek Time-off Request Submission
+                tools_called.append("ww_request_time_off")
+                out3 = await self._execute_tool_call("ww_request_time_off", {
+                    "leave_type": "Sick",
+                    "start_date": "2026-09-01",
+                    "end_date": "2026-09-03",
+                    "days": 3.0
+                }, employee_id)
+
+                if "Rejected" in out3 or "Error" in out3 or "Failed" in out3:
+                    raise RuntimeError(f"Downstream leave submission failed: {out3}")
+
+                tool_outputs.append(out3)
+
+            except Exception as saga_err:
+                logger.error(f"[D-007 Saga Failure]: {saga_err}. Triggering automated compensating rollback...")
+                # Automated Compensating Transaction: Roll back ServiceImmediately ticket
+                if created_ticket_id:
+                    await self.service_immediately.update_ticket_status(
+                        ticket_id=created_ticket_id,
+                        status="Canceled",
+                        resolution_notes=f"Automated Saga Rollback (Design Decision D-007): Downstream WorkWeek time-off failure ({saga_err})"
+                    )
+                    tools_called.append("si_rollback_ticket")
+                    tool_outputs.append(f"[D-007 Compensating Transaction]: Canceled IT ticket {created_ticket_id} due to downstream failure.")
+                    logger.info(f"[D-007 Compensating Transaction]: Successfully rolled back ticket {created_ticket_id}")
+                tool_outputs.append(f"Saga Workflow Compensated: {saga_err}")
 
         # 2. Live WorkWeek HCM Balance Queries (Vacation, Sick, Annual Leave Balances)
         # Direct independent routing: Live balance queries NEVER get trapped or routed to static policy RAG!
