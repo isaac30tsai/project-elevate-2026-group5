@@ -2,6 +2,11 @@ version: "3.2"
 eval_name: "altostrat-hr-agent-4tier-rubric-benchmark"
 target_agent: "app.agent:HRAgentOrchestrator"
 
+datasets:
+  - "tests/eval/datasets/eval-data.json"
+  - "tests/eval/datasets/eval-data2.json"
+  - "tests/eval/datasets/evalset.json"
+
 # 1. Organization & Regulatory Assumptions (Explicit Governance Context)
 organization_assumptions:
   company_name: "Altostrat Singapore Pte Ltd"
