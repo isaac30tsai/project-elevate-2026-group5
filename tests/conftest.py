@@ -24,12 +24,17 @@ def mock_gcp_clients_for_tests(monkeypatch):
     try:
         from google import genai
         from unittest.mock import AsyncMock
+        def mock_gen_content(*args, **kwargs):
+            prompt_str = str(kwargs.get("contents", ""))
+            if "pet insurance" in prompt_str.lower() or "veterinary" in prompt_str.lower():
+                text = "This matter is not specified in the Altostrat Employee Policy Handbook. Please contact People Operations (people-ops@altostrat.com) directly."
+            else:
+                text = "APPROVED: Grounded response verified against Altostrat Singapore Policy (§8.3 / §12.1 / §14.2). Vacation balances and policy citations certified."
+            return MagicMock(text=text)
+
         mock_genai_instance = MagicMock()
-        mock_res = MagicMock(
-            text="APPROVED: Grounded response verified against Altostrat Singapore Policy (§8.3 / §12.1 / §14.2). Vacation balances and policy citations certified."
-        )
-        mock_genai_instance.models.generate_content.return_value = mock_res
-        mock_genai_instance.aio.models.generate_content = AsyncMock(return_value=mock_res)
+        mock_genai_instance.models.generate_content.side_effect = mock_gen_content
+        mock_genai_instance.aio.models.generate_content = AsyncMock(side_effect=mock_gen_content)
         monkeypatch.setattr(genai, "Client", lambda *args, **kwargs: mock_genai_instance)
     except ImportError:
         pass
